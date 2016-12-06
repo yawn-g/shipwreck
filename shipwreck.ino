@@ -25,7 +25,9 @@ int useless17 = 0;
 int useless18 = 0;
 int useless19 = 0;
 
-bool game_over = false;
+bool playing = false;
+bool game_over = false; // playing remains true until anim is over
+byte game_over_anim_fc; // frame counter for game over anim
 byte nb_shots[2];
 byte last_cur_x[2] = { 4, 4 };
 byte last_cur_y[2] = { 4, 4 };
@@ -33,10 +35,6 @@ byte last_cur_y[2] = { 4, 4 };
 // text variables
 char p_name[2][9] = { "Yann", "Player2" };
 const char boat_name[5][9] = { "Cruiser", "Submarin", "Destroyr", "Bat.Ship", "Carrier" };
-
-// popup
-String myPopupText;
-byte myPopupTimeLeft;
 
 // boat positions x, y, dir (255 for x means not placed)
 byte boat_pos[2][5][3] =
@@ -198,6 +196,34 @@ B00011100,B00000000,B00000000,B00000011,B11000011,B11100000,B11000000,B00000000,
 B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,
 };
 
+// game
+const byte bitmap_game[] PROGMEM = {56,11,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+};
+// over
+const byte bitmap_over[] PROGMEM = {56,11,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+};
 /*
  * 
  *        SETUP ==================================================================
@@ -329,19 +355,7 @@ byte check_pos(bool p, byte cur_x, byte cur_y) {
   }
   return output;
 }
-/*
-bool sunk(bool p, byte b) {
-  // true by default
-  bool output = true;
-  for (byte i = 0; i < b; i++){
-    byte x = boat_pos[p][b][0];
-    byte y = boat_pos[p][b][1];
-    bool dir = boat_pos[p][b][2];
-    // if the pos isn't the boat, then NOT sunk (false)
-    if (check_pos(p, x + i*dir, y + i*(-dir+1)) != b) output = false;
-  }
-  return output;
-}*/
+
 
 bool sunk(bool p, byte b) {
   bool output = true;
@@ -374,6 +388,17 @@ void print_in_zone_with_number(char t[9], byte n) {
   gb.display.println(n);
 }
 
+// anims
+void update_game_over_anim() {
+  byte gx;
+  byte ox;
+  if (game_over_anim_fc < 37) {
+    gx = 84 - game_over_anim_fc*2;
+    ox = -50 + game_over_anim_fc*2;
+  }
+  gb.display.drawBitmap(gx, 8, bitmap_game);
+  game_over_anim_fc++;
+}
 /*
  * 
  *        LOOP ====================================================================
@@ -500,7 +525,8 @@ void loop() {
    *    GGGGG   A   A   M   M   EEEEE
    */
 
-  while (!game_over) {
+  while (!playing) {
+
     // for each player
     for (byte p = 0; p < 2; p++) {
       /*
@@ -580,10 +606,10 @@ void loop() {
             gb.display.print(press_a);
   
             // change speed :)
-            //if (gb.buttons.pressed(BTN_LEFT) && interval < 10) interval++;
-            //if (gb.buttons.pressed(BTN_RIGHT) && interval > 0) interval--;
+            if (gb.buttons.pressed(BTN_LEFT) && interval < 10) interval++;
+            if (gb.buttons.pressed(BTN_RIGHT) && interval > 1) interval--;
 
-            // play anim
+            // resolve and play anim
             if (steps == 1){
               // check last shot of other player
               // if exists
@@ -602,7 +628,13 @@ void loop() {
                         case 3: gb.popup(F("Battle ship sunk!"), 20); break;
                         case 4: gb.popup(F("Carrier sunk!"), 20); break;
                       }
-                      Serial.println("lkl");
+                      // check if other boats sunk too
+                      game_over = true;
+                      for (int i = 0; i < 5; i++) {
+                        if (i != check_shot) {
+                          if (!sunk(p, check_shot)) game_over = false;
+                        }
+                      }
                     }
                     // if hit but not sunk
                     else gb.popup(F("HIT!!!"), 15);
@@ -627,6 +659,8 @@ void loop() {
                 else anim_frame--;
               }              
             }
+            // update game over anim
+            if (game_over) update_game_over_anim();
   
             // buttons
             // proceed if button A pressed
@@ -680,6 +714,7 @@ void loop() {
               gb.popup(F("Already shot there!"), 20);
             }
             else {
+              gb.sound.playTick();
               nb_shots[p]++;
               byte target = check_pos(-p+1, cur_x, cur_y);
               if (target < 255) {
@@ -725,10 +760,10 @@ void loop() {
               else gb.display.drawFastVLine(72 + x, 37 + y, b+1);
             }
           }
-        }
-      }
-    }
-  }
-}
+        }                   // end if gb.update()
+      }                     // end while waiting for shoot
+    }                       // end for each player
+  }                         // end while not over
+}                           // end loop
 
 
