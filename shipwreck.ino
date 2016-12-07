@@ -399,9 +399,10 @@ void draw_shots(bool p) {
           draw_boat(x, y, shot, dir, GRAY);
         }
       // if miss
-      else if (shot == 254)
+      else if (shot == 254) {
         gb.display.setColor(WHITE);
         gb.display.fillRect(x*5 + 3, y*5 + 3, 2, 2);
+      }
     }
   }
 }
@@ -482,7 +483,8 @@ void print_in_zone_with_number(char t[9], byte n) {
 }
 
 // anims
-void update_game_over_anim() {
+void update_game_over_anim(bool p) {
+  
   // bitmaps x pos
   byte gx, ox;
   // rects y pos & height
@@ -493,7 +495,7 @@ void update_game_over_anim() {
     playing = false;
   }
   
-  // 1: game over bitmaps (drawn on top)
+  // "game over" bitmaps (drawn on top)
   if (game_over_anim_fc <= 17) {
     gx = 84 - game_over_anim_fc*4;
     ox = -50 + game_over_anim_fc*4;
@@ -502,11 +504,6 @@ void update_game_over_anim() {
     gx = 16;
     ox = 18;
   }
-//  gb.display.cursorX = gx;
-//  gb.display.cursorY = 10;
-//  gb.display.println(F("GAME"));
-//  gb.display.cursorX = ox;
-//  gb.display.print(F("OVER"));
   gb.display.setColor(WHITE);
   gb.display.drawBitmap(gx-1, 7, game_outline);
   gb.display.drawBitmap(ox-1, 22, over_outline);
@@ -514,8 +511,17 @@ void update_game_over_anim() {
   gb.display.drawBitmap(gx, 8, game_text);
   gb.display.drawBitmap(ox, 23, over_text);
 
+  // and the winner is
+  gb.display.setColor(WHITE);
+  gb.display.cursorX = 2;
+  gb.display.cursorY = 41;
+  gb.display.print(p_name[p]);
+  gb.display.print(" wins!");
+
   game_over_anim_fc++;
 }
+
+
 /*
  * 
  *        LOOP ====================================================================
@@ -655,12 +661,14 @@ void loop() {
 
     // for each player
     for (byte p = 0; p < 2; p++) {
+      
       // don't run for p2 if p1 already won
       if (playing == false) break;
+      
       /*
-       * 
        *          ANIM SCREEN
-       *          
+       *          ANIM SCREEN
+       *          ANIM SCREEN
        */
       int clouds_x, clouds2_x;
       byte b_y_offset = 0;
@@ -670,13 +678,17 @@ void loop() {
       int last_arrow_move = last_move;
       byte anim_frames = 15;
       byte anim_frame = anim_frames;
+      
       // step 0: previous shot text, step 1: shot anim, step 2, next player's turn text
       for (byte steps = 0; steps < 3; steps++) {
+        
         // skip first 2 steps if no previous shot
         if (nb_shots[-p+1] == 0) steps = 2;
+        
         bool waiting = true;
         while (waiting) {
           if (gb.update()) {
+            
             // move clouds
             int fc = gb.frameCount;
             if (fc - last_move > interval) {
@@ -690,7 +702,7 @@ void loop() {
               }
             }
             
-            // arrow
+            // move arrow
             if (fc - last_arrow_move > 10) {
               last_arrow_move = fc;
               if (press_a[1] == 16) {
@@ -702,8 +714,7 @@ void loop() {
               }
             }
             
-            // draw
-            // clouds
+            // draw clouds
             gb.display.setColor(GRAY);
             gb.display.drawBitmap(clouds2_x, 0, clouds2);
             gb.display.drawBitmap(clouds2_x + 88, 0, clouds2);
@@ -713,7 +724,8 @@ void loop() {
             gb.display.setColor(BLACK);
             gb.display.drawBitmap(clouds_x, 0, clouds);
             gb.display.drawBitmap(clouds_x + 88, 0, clouds);
-            // text
+            
+            // draw text
             if (!game_over) {
               gb.display.cursorX = 14;
               gb.display.cursorY = 15;
@@ -727,6 +739,7 @@ void loop() {
                 gb.display.println("shot:");
               }   
             }
+
             // boat & water
             gb.display.drawBitmap(10, 19 + b_y_offset, logo);
             gb.display.setColor(GRAY);
@@ -792,7 +805,7 @@ void loop() {
               }              
             }
             // update game over anim
-            if (game_over) update_game_over_anim();
+            if (game_over) update_game_over_anim(-p+1);
   
             // buttons
             // proceed if button A pressed
@@ -811,8 +824,10 @@ void loop() {
       // restore last shooting cursor position
       byte cur_x = last_cur_x[p];
       byte cur_y = last_cur_y[p];
+      
       // initalize shooting phase
       bool waiting_for_shot = true;
+      
       // skip shot if game is over
       if (game_over) waiting_for_shot = false;
       while (waiting_for_shot) {
@@ -898,4 +913,3 @@ void loop() {
     }                       // end for each player
   }                         // end while not over
 }                           // end loop
-
