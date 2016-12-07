@@ -1,6 +1,5 @@
 #include <SPI.h>
 #include <Gamebuino.h>
-
 Gamebuino gb;
 
 //
@@ -53,7 +52,7 @@ byte last_cur_x[2] = { 4, 4 };
 byte last_cur_y[2] = { 4, 4 };
 
 // text variables
-char p_name[2][9] = { "Yann", "Player2" };
+char p_name[2][9] = { "Player1", "Player2" };
 
 // text constants
 const char boat_name[5][9] = { "Cruiser", "Submarin", "Destroyr", "Bat.Ship", "Carrier" };
@@ -296,7 +295,6 @@ void setup(){
  *        FONCTIONS
  * 
  */
-
 
 void title_screen() {
   gb.sound.playCancel();
@@ -913,3 +911,5 @@ void loop() {
     }                       // end for each player
   }                         // end while not over
 }                           // end loop
+
+
