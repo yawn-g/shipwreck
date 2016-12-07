@@ -16,7 +16,7 @@ int useless8 = 0;
 int useless9 = 0;
 int useless10 = 0;
 int useless11 = 0;
-int useless12 = 0;
+/*int useless12 = 0;
 int useless13 = 0;
 int useless14 = 0;
 int useless15 = 0;
@@ -24,8 +24,28 @@ int useless16 = 0;
 int useless17 = 0;
 int useless18 = 0;
 int useless19 = 0;
+int useless20 = 0;
+int useless21 = 0;
+int useless22 = 0;
+int useless23 = 0;
+int useless24 = 0;
+int useless25 = 0;*/
+int useless26 = 0;
+int useless27 = 0;
+int useless28 = 0;
+int useless29 = 0;
+int useless30 = 0;
+int useless31 = 0;
+int useless32 = 0;
+int useless33 = 0;
+int useless34 = 0;
+int useless35 = 0;
+int useless36 = 0;
+int useless37 = 0;
+int useless38 = 0;
+int useless39 = 0;
 
-bool playing = false;
+bool playing;
 bool game_over = false; // playing remains true until anim is over
 byte game_over_anim_fc; // frame counter for game over anim
 byte nb_shots[2];
@@ -34,6 +54,8 @@ byte last_cur_y[2] = { 4, 4 };
 
 // text variables
 char p_name[2][9] = { "Yann", "Player2" };
+
+// text constants
 const char boat_name[5][9] = { "Cruiser", "Submarin", "Destroyr", "Bat.Ship", "Carrier" };
 
 // boat positions x, y, dir (255 for x means not placed)
@@ -196,34 +218,65 @@ B00011100,B00000000,B00000000,B00000011,B11000011,B11100000,B11000000,B00000000,
 B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,
 };
 
-// game
-const byte bitmap_game[] PROGMEM = {56,11,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+// game bitmaps
+const byte game_text[] PROGMEM = {56,11,
+B00001111,B11000000,B01100000,B01111100,B00011111,B01111111,B11000000,
+B00111000,B11000000,B11100000,B00111100,B00111100,B00111000,B11000000,
+B01100000,B01000000,B11110000,B00111100,B00111100,B00111000,B01000000,
+B01100000,B01000001,B11110000,B00101100,B01111100,B00110000,B00000000,
+B11100000,B00000001,B00110000,B00101110,B01011000,B00110011,B00000000,
+B11100000,B00000010,B00110000,B01101110,B10011000,B01111110,B00000000,
+B11000111,B11100111,B11110000,B01101110,B10011000,B01110010,B00000000,
+B11100001,B10000100,B00111000,B01000111,B00111000,B01110000,B00000000,
+B11100001,B10001100,B00111000,B01000111,B00111000,B01100000,B10000000,
+B01110011,B10011000,B00111000,B11000110,B00111000,B11100001,B10000000,
+B00111111,B00111100,B01111101,B11100110,B11111101,B11111111,B10000000,
+};
+const byte game_outline[] PROGMEM = {56,13,
+B00001111,B11110000,B01111000,B01111111,B00011111,B11111111,B11110000,
+B00111000,B00010000,B11001000,B01000001,B00110000,B01000000,B00010000,
+B01100011,B10010000,B10001100,B01100001,B00100001,B11100011,B10010000,
+B01001110,B11010001,B10000100,B00100001,B01100001,B00100010,B11010000,
+B11001000,B01010001,B00000100,B00101001,B11000001,B00100111,B11110000,
+B10001000,B01110011,B01100100,B01101000,B11010011,B01100110,B01000000,
+B10001111,B11111110,B11100100,B01001000,B10110010,B01000000,B11000000,
+B10011100,B00001100,B00000110,B01001000,B10110010,B01000110,B10000000,
+B10001111,B00111101,B11100010,B01011100,B01100010,B01000111,B11100000,
+B10001111,B00111001,B00100010,B11010100,B01100010,B11001101,B10100000,
+B11000110,B00110011,B01100011,B10011100,B11100011,B10001111,B00100000,
+B01100000,B01100001,B01000001,B00001100,B10000001,B00000000,B00100000,
+B00111111,B11111111,B01111111,B11111111,B11111111,B11111111,B11100000,
 };
 // over
-const byte bitmap_over[] PROGMEM = {56,11,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
-B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,B11111111,
+const byte over_text[] PROGMEM = {48,11,
+B00001111,B10001111,B10001111,B01111111,B11001111,B11110000,
+B00110001,B11000111,B00000110,B00111000,B11000111,B00111000,
+B01110000,B11100111,B00001100,B00111000,B01000111,B00111000,
+B01100000,B11100111,B00001000,B00110000,B00000110,B00111000,
+B11100000,B11100011,B00011000,B00110011,B00000110,B00110000,
+B11100000,B11100011,B00110000,B01111110,B00001111,B11100000,
+B11100000,B11100011,B00110000,B01110010,B00001110,B11000000,
+B11100000,B11000011,B11100000,B01110000,B00001100,B11100000,
+B11100001,B11000011,B11000000,B01100000,B10001100,B01100000,
+B01100011,B10000001,B11000000,B11100001,B10011100,B01110000,
+B00111110,B00000001,B10000001,B11111111,B10111110,B00111100,
 };
+const byte over_outline[] PROGMEM = {48,13,
+B00001111,B11101111,B11101111,B11111111,B11111111,B11111100,
+B00111000,B00111000,B00101000,B01000000,B00011000,B00000110,
+B01100111,B00011100,B01101100,B11100011,B10011100,B01100010,
+B01000101,B10001100,B01001001,B10100010,B11010100,B01100010,
+B11001100,B10001100,B01011011,B00100111,B11110100,B11100010,
+B10001000,B10001110,B01110010,B01100110,B01001100,B11100110,
+B10001000,B10001010,B01100110,B01000000,B11001000,B00001100,
+B10001000,B10001010,B01100100,B01000110,B10001000,B10011000,
+B10001001,B10011010,B00001100,B01000111,B11101001,B10001000,
+B10001011,B00010010,B00011000,B11001101,B10111001,B11001100,
+B11001110,B00110011,B00010001,B10001111,B00110001,B11000110,
+B01100000,B11100001,B00110001,B00000000,B00100000,B11100010,
+B00111111,B10000001,B11100001,B11111111,B11111111,B10111110,
+};
+
 /*
  * 
  *        SETUP ==================================================================
@@ -234,7 +287,7 @@ void setup(){
   Serial.begin(9600);
   gb.begin();
   gb.titleScreen(F("Shipwreck"), logo);
-  gb.pickRandomSeed();
+  //gb.pickRandomSeed();
   gb.battery.show = false;
 }
 
@@ -243,6 +296,7 @@ void setup(){
  *        FONCTIONS
  * 
  */
+
 
 void title_screen() {
   gb.sound.playCancel();
@@ -389,10 +443,31 @@ void print_in_zone_with_number(char t[9], byte n) {
 }
 
 // anims
-void update_game_over_anim() {
-  byte gx;
-  byte ox;
-  if (game_over_anim_fc < 18) {
+bool update_game_over_anim() {
+  // bitmaps x pos
+  byte gx, ox;
+  // rects y pos & height
+  byte ry, rh;
+  // will be returned to set value of waiting
+  bool output = true;
+
+  // 2: stylish erase screen
+  if (game_over_anim_fc >= 18 && game_over_anim_fc <= 41) {
+    rh = game_over_anim_fc - 17;
+    ry = 48 - rh;
+    gb.display.setColor(BLACK);
+    gb.display.fillRect(0, 0, 84, rh);
+    gb.display.fillRect(0, ry, 84, rh);
+  }
+  // if anim finished
+  if (game_over_anim_fc > 41) {
+    playing = false;
+    // set waiting to false
+    output = false;
+  }
+  
+  // 1: game over bitmaps (drawn on top)
+  if (game_over_anim_fc <= 17) {
     gx = 84 - game_over_anim_fc*4;
     ox = -50 + game_over_anim_fc*4;
   }
@@ -400,21 +475,20 @@ void update_game_over_anim() {
     gx = 16;
     ox = 18;
   }
+//  gb.display.cursorX = gx;
+//  gb.display.cursorY = 10;
+//  gb.display.println(F("GAME"));
+//  gb.display.cursorX = ox;
+//  gb.display.print(F("OVER"));
+  gb.display.setColor(WHITE);
+  gb.display.drawBitmap(gx-1, 7, game_outline);
+  gb.display.drawBitmap(ox-1, 22, over_outline);
   gb.display.setColor(BLACK);
-  gb.display.cursorX = gx;
-  gb.display.cursorY = 10;
-  gb.display.println(F("GAME"));
-  gb.display.cursorX = ox;
-  gb.display.print(F("OVER"));
-//  gb.display.drawBitmap(gx, 8, bitmap_game);
-  if (game_over_anim_fc > 17 && game_over_anim_fc < 102) {
-    gb.display.fillRect(0, 0, game_over_anim_fc - 17, 24);
-    gb.display.fillRect(83 - (game_over_anim_fc - 18), 24, game_over_anim_fc - 17, 24);
-  }
-  if (game_over_anim_fc > 101) {
-    gb.display.fillScreen(BLACK);
-  }
+  gb.display.drawBitmap(gx, 8, game_text);
+  gb.display.drawBitmap(ox, 23, over_text);
+
   game_over_anim_fc++;
+  return output;
 }
 /*
  * 
@@ -542,7 +616,8 @@ void loop() {
    *    GGGGG   A   A   M   M   EEEEE
    */
 
-  while (!playing) {
+  playing = true;
+  while (playing) {
 
     // for each player
     for (byte p = 0; p < 2; p++) {
@@ -624,9 +699,9 @@ void loop() {
             gb.display.cursorY = 41;
             gb.display.print(press_a);
   
-            // change speed :)
+            /* change speed :)
             if (gb.buttons.pressed(BTN_LEFT) && interval < 10) interval++;
-            if (gb.buttons.pressed(BTN_RIGHT) && interval > 1) interval--;
+            if (gb.buttons.pressed(BTN_RIGHT) && interval > 1) interval--;*/
 
             // resolve and play anim
             if (steps == 1){
@@ -654,6 +729,7 @@ void loop() {
                           game_over = false;
                         }
                       }
+                      if (game_over) waiting = false;
                     }
                     // if hit but not sunk
                     else gb.popup(F("HIT!!!"), 15);
@@ -678,8 +754,8 @@ void loop() {
                 else anim_frame--;
               }              
             }
-            // update game over anim
-            if (game_over) update_game_over_anim();
+            // update game over anim and set waiting to false if anim finished
+            if (game_over) waiting = update_game_over_anim();
   
             // buttons
             // proceed if button A pressed
