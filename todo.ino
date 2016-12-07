@@ -1,7 +1,7 @@
 /*
  * mandatory
  */
-// check if game over
+// DONE check if game over
 // display other player's shots
 // sound when hit
 // make sinking anim play even if button pressed before the end of the anim
