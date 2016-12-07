@@ -392,11 +392,28 @@ void print_in_zone_with_number(char t[9], byte n) {
 void update_game_over_anim() {
   byte gx;
   byte ox;
-  if (game_over_anim_fc < 37) {
-    gx = 84 - game_over_anim_fc*2;
-    ox = -50 + game_over_anim_fc*2;
+  if (game_over_anim_fc < 18) {
+    gx = 84 - game_over_anim_fc*4;
+    ox = -50 + game_over_anim_fc*4;
   }
-  gb.display.drawBitmap(gx, 8, bitmap_game);
+  else {
+    gx = 16;
+    ox = 18;
+  }
+  gb.display.setColor(BLACK);
+  gb.display.cursorX = gx;
+  gb.display.cursorY = 10;
+  gb.display.println(F("GAME"));
+  gb.display.cursorX = ox;
+  gb.display.print(F("OVER"));
+//  gb.display.drawBitmap(gx, 8, bitmap_game);
+  if (game_over_anim_fc > 17 && game_over_anim_fc < 102) {
+    gb.display.fillRect(0, 0, game_over_anim_fc - 17, 24);
+    gb.display.fillRect(83 - (game_over_anim_fc - 18), 24, game_over_anim_fc - 17, 24);
+  }
+  if (game_over_anim_fc > 101) {
+    gb.display.fillScreen(BLACK);
+  }
   game_over_anim_fc++;
 }
 /*
@@ -585,16 +602,18 @@ void loop() {
             gb.display.drawBitmap(clouds_x, 0, clouds);
             gb.display.drawBitmap(clouds_x + 88, 0, clouds);
             // text
-            gb.display.cursorX = 14;
-            gb.display.cursorY = 15;
-            if (steps == 2) {
-              gb.display.print(p_name[p]);
-              gb.display.print("'s ");
-              gb.display.print("turn!");
-            } else {
-              gb.display.print(p_name[-p+1]);
-              gb.display.print("'s ");
-              gb.display.println("shot:");
+            if (!game_over) {
+              gb.display.cursorX = 14;
+              gb.display.cursorY = 15;
+              if (steps == 2) {
+                gb.display.print(p_name[p]);
+                gb.display.print("'s ");
+                gb.display.print("turn!");
+              } else {
+                gb.display.print(p_name[-p+1]);
+                gb.display.print("'s ");
+                gb.display.println("shot:");
+              }   
             }
             // boat & water
             gb.display.drawBitmap(10, 19 + b_y_offset, logo);
@@ -631,8 +650,8 @@ void loop() {
                       // check if other boats sunk too
                       game_over = true;
                       for (int i = 0; i < 5; i++) {
-                        if (i != check_shot) {
-                          if (!sunk(p, check_shot)) game_over = false;
+                        if (!sunk(p, i)) {
+                          game_over = false;
                         }
                       }
                     }
