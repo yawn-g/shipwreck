@@ -29,13 +29,13 @@ int useless21 = 0;
 int useless22 = 0;
 int useless23 = 0;
 int useless24 = 0;
-int useless25 = 0;*/
+int useless25 = 0;
 int useless26 = 0;
 int useless27 = 0;
 int useless28 = 0;
 int useless29 = 0;
 int useless30 = 0;
-int useless31 = 0;
+int useless31 = 0;*/
 int useless32 = 0;
 int useless33 = 0;
 int useless34 = 0;
@@ -218,7 +218,7 @@ B00011100,B00000000,B00000000,B00000011,B11000011,B11100000,B11000000,B00000000,
 B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,
 };
 
-// game bitmaps
+// game text bitmaps
 const byte game_text[] PROGMEM = {56,11,
 B00001111,B11000000,B01100000,B01111100,B00011111,B01111111,B11000000,
 B00111000,B11000000,B11100000,B00111100,B00111100,B00111000,B11000000,
@@ -247,7 +247,7 @@ B11000110,B00110011,B01100011,B10011100,B11100011,B10001111,B00100000,
 B01100000,B01100001,B01000001,B00001100,B10000001,B00000000,B00100000,
 B00111111,B11111111,B01111111,B11111111,B11111111,B11111111,B11100000,
 };
-// over
+// over txt bitmaps
 const byte over_text[] PROGMEM = {48,11,
 B00001111,B10001111,B10001111,B01111111,B11001111,B11110000,
 B00110001,B11000111,B00000110,B00111000,B11000111,B00111000,
@@ -381,14 +381,26 @@ void draw_boats(bool p) {
  *  255 when miss
  */
 void draw_shots(bool p) {
-  gb.display.setColor(WHITE);
   for (byte y = 0; y < 9; y++) {
     for (byte x = 0; x < 9; x++) {
       byte shot = shots[p][x][y];
       // if hit
       if (shot >=0 && shot < 5)
-        gb.display.fillRect(x*5 + 2, y*5 + 2, 4, 4);
+        if(!sunk(-p+1, shot)) {
+          gb.display.setColor(WHITE);
+          gb.display.fillRect(x*5 + 2, y*5 + 2, 4, 4);
+        }
+        else {
+          byte x, y;
+          bool dir;
+          x = boat_pos[-p+1][shot][0];
+          y = boat_pos[-p+1][shot][1];
+          dir = boat_pos[-p+1][shot][2];
+          draw_boat(x, y, shot, dir, GRAY);
+        }
+      // if miss
       else if (shot == 254)
+        gb.display.setColor(WHITE);
         gb.display.fillRect(x*5 + 3, y*5 + 3, 2, 2);
     }
   }
@@ -410,6 +422,33 @@ byte check_pos(bool p, byte cur_x, byte cur_y) {
   return output;
 }
 
+void reset_game() {
+  byte v = 0;
+
+  game_over = false;
+  game_over_anim_fc = 0;
+  
+  for (byte p = 0; p < 2; p++) {
+    // reset boat positions
+    for (byte b = 0; b < 5; b++) {
+      for (byte n = 0; n < 3; n++) {
+        if (n == 0) v = 255;
+        else v = 0;
+        boat_pos[p][b][n] = v;
+      }
+    }
+
+    // reset shots
+    for (byte x = 0; x < 9; x++) {
+      for (byte y = 0; y < 9; y++) {
+        shots[p][x][y] = 255;
+      }
+    }
+    nb_shots[p] = 0;
+    last_cur_x[p] = 4;
+    last_cur_y[p] = 4;
+  }
+}
 
 bool sunk(bool p, byte b) {
   bool output = true;
@@ -443,27 +482,15 @@ void print_in_zone_with_number(char t[9], byte n) {
 }
 
 // anims
-bool update_game_over_anim() {
+void update_game_over_anim() {
   // bitmaps x pos
   byte gx, ox;
   // rects y pos & height
   byte ry, rh;
-  // will be returned to set value of waiting
-  bool output = true;
 
-  // 2: stylish erase screen
-  if (game_over_anim_fc >= 18 && game_over_anim_fc <= 41) {
-    rh = game_over_anim_fc - 17;
-    ry = 48 - rh;
-    gb.display.setColor(BLACK);
-    gb.display.fillRect(0, 0, 84, rh);
-    gb.display.fillRect(0, ry, 84, rh);
-  }
   // if anim finished
   if (game_over_anim_fc > 41) {
     playing = false;
-    // set waiting to false
-    output = false;
   }
   
   // 1: game over bitmaps (drawn on top)
@@ -488,7 +515,6 @@ bool update_game_over_anim() {
   gb.display.drawBitmap(ox, 23, over_text);
 
   game_over_anim_fc++;
-  return output;
 }
 /*
  * 
@@ -497,7 +523,15 @@ bool update_game_over_anim() {
  */
 
 void loop() {
-  // boat setup
+
+  reset_game();
+
+  /*
+   * 
+   *          BOAT SETUP
+   * 
+   */
+
   // for each player
   for (byte p = 0; p < 2; p++) {
     byte b = 4;
@@ -621,8 +655,12 @@ void loop() {
 
     // for each player
     for (byte p = 0; p < 2; p++) {
+      // don't run for p2 if p1 already won
+      if (playing == false) break;
       /*
-       *    BOAT SCREEN
+       * 
+       *          ANIM SCREEN
+       *          
        */
       int clouds_x, clouds2_x;
       byte b_y_offset = 0;
@@ -666,7 +704,6 @@ void loop() {
             
             // draw
             // clouds
-            //gb.display.clear();
             gb.display.setColor(GRAY);
             gb.display.drawBitmap(clouds2_x, 0, clouds2);
             gb.display.drawBitmap(clouds2_x + 88, 0, clouds2);
@@ -722,14 +759,14 @@ void loop() {
                         case 3: gb.popup(F("Battle ship sunk!"), 20); break;
                         case 4: gb.popup(F("Carrier sunk!"), 20); break;
                       }
-                      // check if other boats sunk too
+                      // check if all other boats sunk too
                       game_over = true;
                       for (int i = 0; i < 5; i++) {
                         if (!sunk(p, i)) {
                           game_over = false;
                         }
                       }
-                      if (game_over) waiting = false;
+                      if (game_over) playing = false;
                     }
                     // if hit but not sunk
                     else gb.popup(F("HIT!!!"), 15);
@@ -754,8 +791,8 @@ void loop() {
                 else anim_frame--;
               }              
             }
-            // update game over anim and set waiting to false if anim finished
-            if (game_over) waiting = update_game_over_anim();
+            // update game over anim
+            if (game_over) update_game_over_anim();
   
             // buttons
             // proceed if button A pressed
@@ -776,6 +813,8 @@ void loop() {
       byte cur_y = last_cur_y[p];
       // initalize shooting phase
       bool waiting_for_shot = true;
+      // skip shot if game is over
+      if (game_over) waiting_for_shot = false;
       while (waiting_for_shot) {
         if (gb.update()) {
           draw_board();
@@ -836,14 +875,13 @@ void loop() {
           gb.display.drawRect(cur_x*5 + 3, cur_y*5 + 3, 2, 2);
 
           // text (must be drawn after aim)
-          gb.display.setColor(GRAY);
+          gb.display.setColor(BLACK);
           gb.display.fillRect(49, 0, 34, 7);
           gb.display.setColor(WHITE);
           gb.display.fillRect(49, 8, 34, 40);
           print_in_zone(p_name[p]);
           gb.display.setColor(BLACK);
           print_in_zone_with_number("Shot ", nb_shots[p]+1);
-          print_in_zone("Hits: ");
 
           // mini map
           for (byte b = 0; b <5; b++) {
@@ -860,5 +898,4 @@ void loop() {
     }                       // end for each player
   }                         // end while not over
 }                           // end loop
-
 
