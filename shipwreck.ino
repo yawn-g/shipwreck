@@ -765,14 +765,17 @@ void loop() {
 
             // resolve and play anim
             if (steps == 1){
+              
               // check last shot of other player
               // if exists
               if (nb_shots[-p+1] >= 1) {
                 int check_shot = check_pos(p, last_cur_x[-p+1], last_cur_y[-p+1]);
                 // if hit, check_shot <= 5 (any boat id)
                 if (check_shot < 255) {
+                  
                   // if 1st frame of anim then show popup
                   if (anim_frame == anim_frames) {
+                    
                     // if sunk
                     if (sunk(p, check_shot)) {
                       switch (check_shot) {
@@ -782,6 +785,7 @@ void loop() {
                         case 3: gb.popup(F("Battle ship sunk!"), 20); break;
                         case 4: gb.popup(F("Carrier sunk!"), 20); break;
                       }
+                      
                       // check if all other boats sunk too
                       game_over = true;
                       for (int i = 0; i < 5; i++) {
@@ -791,9 +795,11 @@ void loop() {
                       }
                       if (game_over) playing = false;
                     }
+                    
                     // if hit but not sunk
                     else gb.popup(F("HIT!!!"), 15);
                   }
+                  
                   // other than the 1st frame
                   else {
                     if (sunk(p, check_shot)) {
@@ -802,8 +808,10 @@ void loop() {
                     }
                   }
                 }
+                
                 // if miss
                 else {
+                  
                   // if 1st frame of anim shot popup
                   if (anim_frame == anim_frames) {
                     gb.sound.playCancel();
@@ -869,6 +877,7 @@ void loop() {
 
           // A: shoot
           if (gb.buttons.pressed(BTN_A) && (!display_enemy_shots)) {
+            
             // check if already shot
             if (shots[p][cur_x][cur_y] != 255) {
               gb.sound.playCancel();
@@ -892,7 +901,10 @@ void loop() {
 
           // B: toggle maps
           if (gb.buttons.pressed(BTN_B)) {
-            display_enemy_shots = -display_enemy_shots+1;
+            display_enemy_shots = true;
+          }
+          if (gb.buttons.released(BTN_B)) {
+            display_enemy_shots = false;
           }
           
           // C: pause / leave
