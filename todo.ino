@@ -5,7 +5,7 @@
 // DONE reset when game over
 // DONE anim when game over
 // DONE draw sunk enemy boats bitmaps
-// display other player's shots
+// DONE display other player's shots
 // sound when hit
 // make sinking anim play even if button pressed before the end of the anim
 
@@ -16,5 +16,4 @@
 // anim when boat missed
 // missile sound
 // menu
-// update mini map
 // improve aim design

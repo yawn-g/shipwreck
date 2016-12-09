@@ -45,6 +45,7 @@ int useless38 = 0;
 int useless39 = 0;
 
 bool playing;
+bool display_enemy_shots = false;
 bool game_over = false; // playing remains true until anim is over
 byte game_over_anim_fc; // frame counter for game over anim
 byte nb_shots[2];
@@ -377,8 +378,16 @@ void draw_boats(bool p) {
  *  map values:
  *  boat number when hit
  *  255 when miss
+ *  
  */
 void draw_shots(bool p) {
+  // if asked to draw enemy shots
+  if (display_enemy_shots) {
+    // draw own boats
+    draw_boats(p);
+    // set 
+    p = -p+1;
+  }
   for (byte y = 0; y < 9; y++) {
     for (byte x = 0; x < 9; x++) {
       byte shot = shots[p][x][y];
@@ -394,7 +403,8 @@ void draw_shots(bool p) {
           x = boat_pos[-p+1][shot][0];
           y = boat_pos[-p+1][shot][1];
           dir = boat_pos[-p+1][shot][2];
-          draw_boat(x, y, shot, dir, GRAY);
+          if (display_enemy_shots) draw_boat(x, y, shot, dir, WHITE);
+          else draw_boat(x, y, shot, dir, GRAY);
         }
       // if miss
       else if (shot == 254) {
@@ -531,9 +541,11 @@ void loop() {
   reset_game();
 
   /*
-   * 
-   *          BOAT SETUP
-   * 
+   *    BBBB     OOO     AAA    TTTTT       SSSS   EEEEE   TTTTT   U   U   PPPP
+   *    B   B   O   O   A   A     T        S       E         T     U   U   P   P
+   *    BBBB    O   O   AAAAA     T         SSS    EEE       T     U   U   PPPP
+   *    B   B   O   O   A   A     T            S   E         T     U   U   P
+   *    BBBB     OOO    A   A     T        SSSS    EEEEE     T      UUU    P
    */
 
   // for each player
@@ -556,8 +568,8 @@ void loop() {
         print_in_zone("your");
         print_in_zone(boat_name[b]);
         gb.display.println();
-        print_in_zone("A: Rotat");
-        print_in_zone("B: Place");
+        print_in_zone("A: Place");
+        print_in_zone("B: Rotat");
 
 
         // BUTTON detection
@@ -818,6 +830,8 @@ void loop() {
 
       /*
        *    SHOOT
+       *    SHOOT
+       *    SHOOT
        */
       // restore last shooting cursor position
       byte cur_x = last_cur_x[p];
@@ -854,7 +868,7 @@ void loop() {
           }
 
           // A: shoot
-          if (gb.buttons.pressed(BTN_A)) {
+          if (gb.buttons.pressed(BTN_A) && (!display_enemy_shots)) {
             // check if already shot
             if (shots[p][cur_x][cur_y] != 255) {
               gb.sound.playCancel();
@@ -875,17 +889,24 @@ void loop() {
               last_cur_y[p] = cur_y;
             }
           }
+
+          // B: toggle maps
+          if (gb.buttons.pressed(BTN_B)) {
+            display_enemy_shots = -display_enemy_shots+1;
+          }
           
           // C: pause / leave
           if(gb.buttons.pressed(BTN_C)) title_screen();
 
           // draw aim
-          gb.display.setColor(GRAY);
-          gb.display.drawFastVLine(cur_x*5 + 3, cur_y*5 + 3 - 6, 13);
-          gb.display.drawFastHLine(cur_x*5 + 3 - 6, cur_y*5 + 3, 13);
-          gb.display.setColor(WHITE);
-          gb.display.drawCircle(cur_x*5 + 3, cur_y*5 + 3, 7);
-          gb.display.drawRect(cur_x*5 + 3, cur_y*5 + 3, 2, 2);
+          if (!display_enemy_shots) {
+            gb.display.setColor(GRAY);
+            gb.display.drawFastVLine(cur_x*5 + 3, cur_y*5 + 3 - 6, 13);
+            gb.display.drawFastHLine(cur_x*5 + 3 - 6, cur_y*5 + 3, 13);
+            gb.display.setColor(WHITE);
+            gb.display.drawCircle(cur_x*5 + 3, cur_y*5 + 3, 7);
+            gb.display.drawRect(cur_x*5 + 3, cur_y*5 + 3, 2, 2);
+          }
 
           // text (must be drawn after aim)
           gb.display.setColor(BLACK);
@@ -893,9 +914,19 @@ void loop() {
           gb.display.setColor(WHITE);
           gb.display.fillRect(49, 8, 34, 40);
           print_in_zone(p_name[p]);
+          gb.display.cursorY += 6;
           gb.display.setColor(BLACK);
           print_in_zone_with_number("Shot ", nb_shots[p]+1);
+          gb.display.cursorY += 6;
+          if (!display_enemy_shots) {
+            print_in_zone("A: Shoot");
+          }
+          else {
+            gb.display.println();
+          }
+          print_in_zone("B: Toggl");
 
+          /*
           // mini map
           for (byte b = 0; b <5; b++) {
             byte x = boat_pos[p][b][0];
@@ -905,7 +936,7 @@ void loop() {
               if (dir == true) gb.display.drawFastHLine(72 + x, 37 + y, b+1);
               else gb.display.drawFastVLine(72 + x, 37 + y, b+1);
             }
-          }
+          }*/
         }                   // end if gb.update()
       }                     // end while waiting for shoot
     }                       // end for each player
