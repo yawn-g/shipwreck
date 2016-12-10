@@ -6,6 +6,7 @@
 // DONE anim when game over
 // DONE draw sunk enemy boats bitmaps
 // DONE display other player's shots
+// get ALL anims out of main loop
 // sound when hit
 // make sinking anim play even if button pressed before the end of the anim
 
