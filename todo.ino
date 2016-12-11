@@ -1,5 +1,5 @@
 /*
- * mandatory
+ * 
  */
 // DONE check if game over
 // DONE reset when game over
@@ -11,7 +11,7 @@
 // make sinking anim play even if button pressed before the end of the anim
 
 /*
- * cosmetics
+ * 
  */
 // anim when boat hit
 // anim when boat missed

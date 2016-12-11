@@ -51,10 +51,14 @@ byte game_over_anim_fc; // frame counter for game over anim
 byte nb_shots[2];
 byte last_cur_x[2] = { 4, 4 };
 byte last_cur_y[2] = { 4, 4 };
+// anim variables
 byte clouds_x = 88;
 byte clouds2_x = 88;
 byte boat_anim_fc;
-bool boat_anim_y;
+byte boat_anim_y;
+bool boat_anim_float_y;
+bool sinking = false;
+byte sinking_anim_start;
 
 // text variables
 char p_name[2][9] = { "Player1", "Player2" };
@@ -578,13 +582,22 @@ void draw_anim_text(bool p, byte steps) {
 }
 // boat
 void update_boat() {
-  
-  if (boat_anim_fc > 14) {
-    boat_anim_y = -boat_anim_y+1;
+
+  // anim when boat floating
+  if (boat_anim_fc > 14 && sinking == false) {
+    boat_anim_float_y = -boat_anim_float_y+1;
     boat_anim_fc = 0;
   }
+
+  // anim when boat sinking
+  if (sinking == true) {
+    if (boat_anim_fc > 2) {
+      boat_anim_fc = 0;
+      if (boat_anim_y < 10) boat_anim_y++;
+    }
+  }
   
-  gb.display.drawBitmap(10, 20 + boat_anim_y, logo);
+  gb.display.drawBitmap(10, 20 + boat_anim_float_y + boat_anim_y, logo);
   gb.display.setColor(GRAY);
   gb.display.fillRect(0, 33, 84, 16);
 
@@ -747,6 +760,9 @@ void loop() {
       int last_arrow_move = last_move;
       byte anim_frames = 15;
       byte anim_frame = anim_frames;
+      // initialize boat anim
+      sinking = false;
+      boat_anim_y = 0;
       
       // step 0: previous shot text, step 1: shot anim, step 2, next player's turn text
       for (byte steps = 0; steps < 3; steps++) {
@@ -796,50 +812,40 @@ void loop() {
               // check last shot of other player
               // if exists
               if (nb_shots[-p+1] >= 1) {
+                
+                // tells which boat was hit if any
                 int check_shot = check_pos(p, last_cur_x[-p+1], last_cur_y[-p+1]);
-                // if hit, check_shot <= 5 (any boat id)
+                
+                // if hit
                 if (check_shot < 255) {
                   
-                  // if 1st frame of anim then show popup
-                  if (anim_frame == anim_frames) {
+                  // if sunk
+                  if (sunk(p, check_shot)) {
                     
-                    // if sunk
-                    if (sunk(p, check_shot)) {
-                      switch (check_shot) {
-                        case 0: gb.popup(F("Cruiser sunk!"), 20); break;
-                        case 1: gb.popup(F("Submarine sunk!"), 20); break;
-                        case 2: gb.popup(F("Destroyer sunk!"), 20); break;
-                        case 3: gb.popup(F("Battle ship sunk!"), 20); break;
-                        case 4: gb.popup(F("Carrier sunk!"), 20); break;
-                      }
+                    // initialize anim
+                    boat_anim_fc = 0;
+                    sinking = true;
                       
-                      // check if all other boats sunk too
-                      game_over = true;
-                      for (int i = 0; i < 5; i++) {
-                        if (!sunk(p, i)) {
-                          game_over = false;
-                        }
+                    // check if all other boats sunk too
+                    game_over = true;
+                    for (int i = 0; i < 5; i++) {
+                      if (!sunk(p, i)) {
+                        game_over = false;
                       }
-                      if (game_over) playing = false;
                     }
-                    
-                    // if hit but not sunk
-                    else gb.popup(F("HIT!!!"), 15);
+                    if (game_over) playing = false;
                   }
-                  
-                  // other than the 1st frame
+                    
+                  // if hit but not sunk
                   else {
-                    if (sunk(p, check_shot)) {
-                      // sink
-                      b_y_offset++;
-                    }
+                    gb.popup(F("HIT!!!"), 15);
+                    boat_anim_y = 0;
                   }
                 }
                 
                 // if miss
                 else {
-                  
-                  // if 1st frame of anim shot popup
+                  // if 1st frame of anim show popup
                   if (anim_frame == anim_frames) {
                     gb.sound.playCancel();
                     gb.popup(F("Miss..."), 15);
