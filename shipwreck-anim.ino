@@ -52,6 +52,7 @@ byte nb_shots[2];
 byte last_cur_x[2] = { 4, 4 };
 byte last_cur_y[2] = { 4, 4 };
 // anim variables
+byte anim_duration; 
 byte clouds_x = 88;
 byte clouds2_x = 88;
 byte boat_anim_fc;
@@ -59,9 +60,13 @@ byte boat_anim_y;
 bool boat_anim_float_y;
 bool sinking = false;
 byte sinking_anim_start;
+byte arrow_step_duration = 10;
+byte arrow_fc;
+bool first_frame_of_anim = true;
 
 // text variables
 char p_name[2][9] = { "Player1", "Player2" };
+char press_a[4] = { 21, 16, ' ' }; // "a> "
 
 // text constants
 const char boat_name[5][9] = { "Cruiser", "Submarin", "Destroyr", "Bat.Ship", "Carrier" };
@@ -522,10 +527,11 @@ void update_clouds() {
   gb.display.setColor(BLACK);
   gb.display.drawBitmap(clouds_x, 0, clouds);
   gb.display.drawBitmap(clouds_x - 88, 0, clouds);
-  Serial.println(clouds_x);
+  /*Serial.println(clouds_x);
   Serial.println(clouds2_x);
-  Serial.println();
+  Serial.println();*/
 }
+
 // game over
 void update_game_over_anim(bool p) {
   
@@ -564,6 +570,7 @@ void update_game_over_anim(bool p) {
 
   game_over_anim_fc++;
 }
+
 // text
 void draw_anim_text(bool p, byte steps) {
   if (!game_over) {
@@ -580,6 +587,7 @@ void draw_anim_text(bool p, byte steps) {
     }   
   }
 }
+
 // boat
 void update_boat() {
 
@@ -595,13 +603,43 @@ void update_boat() {
       boat_anim_fc = 0;
       if (boat_anim_y < 10) boat_anim_y++;
     }
+    Serial.println(boat_anim_fc);
+    Serial.println(boat_anim_y);
+    Serial.println();
   }
   
-  gb.display.drawBitmap(10, 20 + boat_anim_float_y + boat_anim_y, logo);
+  gb.display.drawBitmap(10, 22 + boat_anim_float_y + boat_anim_y, logo);
   gb.display.setColor(GRAY);
-  gb.display.fillRect(0, 33, 84, 16);
+  gb.display.fillRect(0, 35, 84, 14);
 
   boat_anim_fc++;
+}
+
+// A arrow
+void update_arrow() {
+
+  // update frame counter
+  if (arrow_fc >= arrow_step_duration) {
+    arrow_fc = 0;
+    
+    // swap space with arrow
+    if (press_a[1] == 16) {
+      press_a[1] = ' ';
+      press_a[2] = 16; // right arrow
+    } else {
+      press_a[1] = 16;
+      press_a[2] = ' ';
+    }
+  }
+  else {
+    arrow_fc++;    
+  }
+
+  // draw
+  gb.display.setColor(WHITE);
+  gb.display.cursorX = 70;
+  gb.display.cursorY = 41;
+  gb.display.print(press_a);
 }
 
 /*
@@ -754,15 +792,11 @@ void loop() {
        *          ANIM SCREEN
        *          ANIM SCREEN
        */
-      byte b_y_offset = 0;
-      char press_a[4] = { 21, 16, ' ' }; // "a> "
-      int last_move = gb.frameCount;
-      int last_arrow_move = last_move;
-      byte anim_frames = 15;
-      byte anim_frame = anim_frames;
+
       // initialize boat anim
       sinking = false;
       boat_anim_y = 0;
+      boat_anim_fc = 0;
       
       // step 0: previous shot text, step 1: shot anim, step 2, next player's turn text
       for (byte steps = 0; steps < 3; steps++) {
@@ -776,20 +810,7 @@ void loop() {
             
             // move clouds
             update_clouds();
-            
-            // move arrow
-            int fc = gb.frameCount;
-            if (fc - last_arrow_move > 10) {
-              last_arrow_move = fc;
-              if (press_a[1] == 16) {
-                press_a[1] = ' ';
-                press_a[2] = 16; // right arrow
-              } else {
-                press_a[1] = 16;
-                press_a[2] = ' ';
-              }
-            }
-                        
+                               
             // draw text
             draw_anim_text(p, steps);
             
@@ -797,18 +818,11 @@ void loop() {
             update_boat();
                         
             // press A arrow
-            gb.display.setColor(WHITE);
-            gb.display.cursorX = 70;
-            gb.display.cursorY = 41;
-            gb.display.print(press_a);
-  
-            /* change speed :)
-            if (gb.buttons.pressed(BTN_LEFT) && interval < 10) interval++;
-            if (gb.buttons.pressed(BTN_RIGHT) && interval > 1) interval--;*/
-
+            update_arrow();
+              
             // resolve and play anim
             if (steps == 1){
-              
+
               // check last shot of other player
               // if exists
               if (nb_shots[-p+1] >= 1) {
@@ -823,7 +837,6 @@ void loop() {
                   if (sunk(p, check_shot)) {
                     
                     // initialize anim
-                    boat_anim_fc = 0;
                     sinking = true;
                       
                     // check if all other boats sunk too
@@ -845,14 +858,10 @@ void loop() {
                 
                 // if miss
                 else {
-                  // if 1st frame of anim show popup
-                  if (anim_frame == anim_frames) {
-                    gb.sound.playCancel();
-                    gb.popup(F("Miss..."), 15);
-                  }
+                  // show popup
+                  gb.sound.playCancel();
+                  gb.popup(F("Miss..."), 15);
                 }
-                if (anim_frame == 0) waiting = false;
-                else anim_frame--;
               }              
             }
             
@@ -986,7 +995,7 @@ void loop() {
         }                   // end if gb.update()
       }                     // end while waiting for shoot
     }                       // end for each player
-  }                         // end while not over
+  }                         // end while playing
 }                           // end loop
 
 
