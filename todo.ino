@@ -11,7 +11,8 @@
 // DONE put sunk popups back
 // DONE missile sound
 // DONE sound when hit
-// anim when boat hit
+// DONE anim when boat hit
+// make explosion appear on top of sinking boat
 // anim when boat missed
 // menu
 // improve aim design
