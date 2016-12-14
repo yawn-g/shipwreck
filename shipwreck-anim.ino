@@ -16,7 +16,7 @@ int useless9 = 0;
 int useless10 = 0;
 int useless11 = 0;
 /*int useless12 = 0;
-int useless13 = 0;
+int useless13 = 0;*/
 int useless14 = 0;
 int useless15 = 0;
 int useless16 = 0;
@@ -34,7 +34,7 @@ int useless27 = 0;
 int useless28 = 0;
 int useless29 = 0;
 int useless30 = 0;
-int useless31 = 0;*/
+int useless31 = 0;
 int useless32 = 0;
 int useless33 = 0;
 int useless34 = 0;
@@ -62,7 +62,7 @@ bool sinking = false;
 byte sinking_anim_start;
 byte arrow_step_duration = 10;
 byte arrow_fc;
-bool first_frame_of_anim = true;
+bool popup_blocker = false;
 
 // text variables
 char p_name[2][9] = { "Player1", "Player2" };
@@ -527,9 +527,6 @@ void update_clouds() {
   gb.display.setColor(BLACK);
   gb.display.drawBitmap(clouds_x, 0, clouds);
   gb.display.drawBitmap(clouds_x - 88, 0, clouds);
-  /*Serial.println(clouds_x);
-  Serial.println(clouds2_x);
-  Serial.println();*/
 }
 
 // game over
@@ -588,26 +585,14 @@ void draw_anim_text(bool p, byte steps) {
   }
 }
 
-// boat
+// boat floating
 void update_boat() {
-
-  // anim when boat floating
   if (boat_anim_fc > 14 && sinking == false) {
     boat_anim_float_y = -boat_anim_float_y+1;
     boat_anim_fc = 0;
   }
 
-  // anim when boat sinking
-  if (sinking == true) {
-    if (boat_anim_fc > 2) {
-      boat_anim_fc = 0;
-      if (boat_anim_y < 10) boat_anim_y++;
-    }
-    Serial.println(boat_anim_fc);
-    Serial.println(boat_anim_y);
-    Serial.println();
-  }
-  
+  // draw
   gb.display.drawBitmap(10, 22 + boat_anim_float_y + boat_anim_y, logo);
   gb.display.setColor(GRAY);
   gb.display.fillRect(0, 35, 84, 14);
@@ -615,6 +600,40 @@ void update_boat() {
   boat_anim_fc++;
 }
 
+// boat sinking
+void update_sink_anim() {
+  if (sinking == true) {
+    if (boat_anim_fc > 3) {
+      boat_anim_fc = 0;
+      if (boat_anim_y < 10) boat_anim_y++;
+    }
+  }
+
+  // draw
+  gb.display.setColor(BLACK);  
+  gb.display.drawBitmap(10, 22 + boat_anim_float_y + boat_anim_y, logo);
+  gb.display.setColor(GRAY);
+  gb.display.fillRect(0, 35, 84, 14);
+
+  boat_anim_fc++;
+}
+
+// sinking popup
+void sunk_popup(byte b) {
+  if (sinking == true) {
+    // show popup
+    if (!popup_blocker) {
+      popup_blocker = true;
+      switch (b) {
+        case 0: gb.popup(F("Cruiser sunk!"), 15); break;
+        case 1: gb.popup(F("Submarine sunk!"), 15); break;
+        case 2: gb.popup(F("Destroyer sunk!"), 15); break;
+        case 3: gb.popup(F("Battleship sunk!"), 15); break;
+        case 4: gb.popup(F("Carrier sunk!"), 15); break;
+      }
+    }
+  }
+}
 // A arrow
 void update_arrow() {
 
@@ -794,16 +813,17 @@ void loop() {
        */
 
       // initialize boat anim
+      popup_blocker = false;
       sinking = false;
       boat_anim_y = 0;
       boat_anim_fc = 0;
       
-      // step 0: previous shot text, step 1: shot anim, step 2, next player's turn text
+      // step 0: previous shot text, step 1: shot anim, step 2: next player's turn text
       for (byte steps = 0; steps < 3; steps++) {
         
         // skip first 2 steps if no previous shot
         if (nb_shots[-p+1] == 0) steps = 2;
-        
+
         bool waiting = true;
         while (waiting) {
           if (gb.update()) {
@@ -817,9 +837,6 @@ void loop() {
             // boat & water
             update_boat();
                         
-            // press A arrow
-            update_arrow();
-              
             // resolve and play anim
             if (steps == 1){
 
@@ -836,8 +853,11 @@ void loop() {
                   // if sunk
                   if (sunk(p, check_shot)) {
                     
-                    // initialize anim
+                    // init anim
                     sinking = true;
+
+                    // popup
+                    sunk_popup(check_shot);
                       
                     // check if all other boats sunk too
                     game_over = true;
@@ -864,7 +884,13 @@ void loop() {
                 }
               }              
             }
-            
+
+            // sink anim
+            update_sink_anim();
+           
+            // press A arrow
+            update_arrow();
+              
             // update game over anim
             if (game_over) update_game_over_anim(-p+1);
   
