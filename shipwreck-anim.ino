@@ -15,7 +15,7 @@ int useless8 = 0;
 int useless9 = 0;
 int useless10 = 0;
 int useless11 = 0;
-/*int useless12 = 0;
+int useless12 = 0;
 int useless13 = 0;
 int useless14 = 0;
 int useless15 = 0;
@@ -34,15 +34,15 @@ int useless27 = 0;
 int useless28 = 0;
 int useless29 = 0;
 int useless30 = 0;
-int useless31 = 0;*/
+int useless31 = 0;
 int useless32 = 0;
 int useless33 = 0;
 int useless34 = 0;
 int useless35 = 0;
-int useless36 = 0;
+int useless36 = 0;/*
 int useless37 = 0;
 int useless38 = 0;
-int useless39 = 0;
+int useless39 = 0;*/
 
 bool playing;
 bool display_enemy_shots = false;
@@ -51,9 +51,22 @@ byte game_over_anim_fc; // frame counter for game over anim
 byte nb_shots[2];
 byte last_cur_x[2] = { 4, 4 };
 byte last_cur_y[2] = { 4, 4 };
+// anim variables
+byte anim_duration; 
+byte clouds_x = 88;
+byte clouds2_x = 88;
+byte boat_anim_fc;
+byte boat_anim_y;
+bool boat_anim_float_y;
+bool sinking = false;
+byte sinking_anim_start;
+byte arrow_step_duration = 10;
+byte arrow_fc;
+bool popup_blocker = false;
 
 // text variables
 char p_name[2][9] = { "Player1", "Player2" };
+char press_a[4] = { 21, 16, ' ' }; // "a> "
 
 // text constants
 const char boat_name[5][9] = { "Cruiser", "Submarin", "Destroyr", "Bat.Ship", "Carrier" };
@@ -277,6 +290,11 @@ B01100000,B11100001,B00110001,B00000000,B00100000,B11100010,
 B00111111,B10000001,B11100001,B11111111,B11111111,B10111110,
 };
 
+// sounds
+const int soundfx[2][8] = {
+  {1,0,57,1,2,9,7,20}, // launch
+  {1,4,58,0,1,4,7,17}  // explode 
+};
 /*
  * 
  *        SETUP ==================================================================
@@ -372,6 +390,24 @@ void draw_boats(bool p) {
   }
 }
 
+bool sunk(bool p, byte b) {
+  bool output = true;
+  byte x = boat_pos[p][b][0];
+  byte y = boat_pos[p][b][1];
+  bool dir = boat_pos[p][b][2];
+  for (byte i = 0; i <= b; i++) {
+    // if horizontal
+    if (dir) {
+      if (i > 0) x++;
+    }
+    else {
+      if (i > 0) y++;
+    }
+    if (shots[-p+1][x][y] != b) output = false;
+  }
+  return output;
+}
+
 /*
  *  DRAW SHOTS
  *  ==========
@@ -459,22 +495,14 @@ void reset_game() {
   }
 }
 
-bool sunk(bool p, byte b) {
-  bool output = true;
-  byte x = boat_pos[p][b][0];
-  byte y = boat_pos[p][b][1];
-  bool dir = boat_pos[p][b][2];
-  for (byte i = 0; i <= b; i++) {
-    // if horizontal
-    if (dir) {
-      if (i > 0) x++;
-    }
-    else {
-      if (i > 0) y++;
-    }
-    if (shots[-p+1][x][y] != b) output = false;
-  }
-  return output;
+// sfx
+void sfx(byte fxno, byte channel) {
+  gb.sound.command(0, soundfx[fxno][6], 0, channel); // set volume
+  gb.sound.command(1, soundfx[fxno][0], 0, channel); // set waveform
+  gb.sound.command(2, soundfx[fxno][5], -soundfx[fxno][4], channel); // set volume slide
+  gb.sound.command(3, soundfx[fxno][3], soundfx[fxno][2] - 58, channel); // set pitch slide
+  gb.sound.playNote(soundfx[fxno][1], soundfx[fxno][7], channel); // play note
+  //WAVEFORM, PITCH, PMD, PMT, VMD, VMT, VOL, LENGTH
 }
 
 // GUI
@@ -491,6 +519,32 @@ void print_in_zone_with_number(char t[9], byte n) {
 }
 
 // anims
+// clouds
+void update_clouds() {
+
+  // fore clouds
+  clouds_x--;
+  if (clouds_x < 1) clouds_x = 88;
+  
+  // back clouds
+  if (clouds_x % 2 == 0) {
+    clouds2_x--;
+    if (clouds2_x < 1) clouds2_x = 88;
+  }
+
+  // draw clouds
+  gb.display.setColor(GRAY);
+  gb.display.drawBitmap(clouds2_x, 0, clouds2);
+  gb.display.drawBitmap(clouds2_x - 88, 0, clouds2);
+  gb.display.setColor(WHITE);
+  gb.display.drawBitmap(clouds_x, 0, cloudsW);
+  gb.display.drawBitmap(clouds_x - 88, 0, cloudsW);
+  gb.display.setColor(BLACK);
+  gb.display.drawBitmap(clouds_x, 0, clouds);
+  gb.display.drawBitmap(clouds_x - 88, 0, clouds);
+}
+
+// game over
 void update_game_over_anim(bool p) {
   
   // bitmaps x pos
@@ -527,6 +581,102 @@ void update_game_over_anim(bool p) {
   gb.display.print(" wins!");
 
   game_over_anim_fc++;
+}
+
+// text
+void draw_anim_text(bool p, byte steps) {
+  if (!game_over) {
+    gb.display.cursorX = 14;
+    gb.display.cursorY = 15;
+    if (steps == 2) {
+      gb.display.print(p_name[p]);
+      gb.display.print("'s ");
+      gb.display.print("turn!");
+    } else {
+      gb.display.print(p_name[-p+1]);
+      gb.display.print("'s ");
+      gb.display.println("shot:");
+    }   
+  }
+}
+
+// boat floating
+void update_boat() {
+  if (boat_anim_fc > 14 && sinking == false) {
+    boat_anim_float_y = -boat_anim_float_y+1;
+    boat_anim_fc = 0;
+  }
+
+  // draw
+  gb.display.drawBitmap(10, 22 + boat_anim_float_y + boat_anim_y, logo);
+  gb.display.setColor(GRAY);
+  gb.display.fillRect(0, 35, 84, 14);
+
+  boat_anim_fc++;
+}
+
+// boat sinking
+void update_sink_anim() {
+  if (sinking == true) {
+    if (boat_anim_fc > 3) {
+      boat_anim_fc = 0;
+      if (boat_anim_y < 10) boat_anim_y++;
+    }
+  }
+
+  // draw
+  gb.display.setColor(BLACK);  
+  gb.display.drawBitmap(10, 22 + boat_anim_float_y + boat_anim_y, logo);
+  gb.display.setColor(GRAY);
+  gb.display.fillRect(0, 35, 84, 14);
+
+  boat_anim_fc++;
+}
+
+// A arrow
+void update_arrow() {
+
+  // update frame counter
+  if (arrow_fc >= arrow_step_duration) {
+    arrow_fc = 0;
+    
+    // swap space with arrow
+    if (press_a[1] == 16) {
+      press_a[1] = ' ';
+      press_a[2] = 16; // right arrow
+    } else {
+      press_a[1] = 16;
+      press_a[2] = ' ';
+    }
+  }
+  else {
+    arrow_fc++;    
+  }
+
+  // draw
+  gb.display.setColor(WHITE);
+  gb.display.cursorX = 70;
+  gb.display.cursorY = 41;
+  gb.display.print(press_a);
+}
+
+// sinking popup & sfx
+void sunk_popup(byte b) {
+  if (sinking == true) {
+    // show popup
+    if (!popup_blocker) {
+      popup_blocker = true;
+      switch (b) {
+        case 0: gb.popup(F("Cruiser sunk!"), 15); break;
+        case 1: gb.popup(F("Submarine sunk!"), 15); break;
+        case 2: gb.popup(F("Destroyer sunk!"), 15); break;
+        case 3: gb.popup(F("Battleship sunk!"), 15); break;
+        case 4: gb.popup(F("Carrier sunk!"), 15); break;
+      }
+      // play sfx
+      sfx(1, 0);
+    }
+  }
 }
 
 
@@ -680,148 +830,96 @@ void loop() {
        *          ANIM SCREEN
        *          ANIM SCREEN
        */
-      int clouds_x, clouds2_x;
-      byte b_y_offset = 0;
-      char press_a[4] = { 21, 16, ' ' }; // "a> "
-      byte interval = 1; // number of frames to count before moving clouds
-      int last_move = gb.frameCount;
-      int last_arrow_move = last_move;
-      byte anim_frames = 15;
-      byte anim_frame = anim_frames;
+
+      // initialize boat anim
+      popup_blocker = false;
+      sinking = false;
+      boat_anim_y = 0;
+      boat_anim_fc = 0;
       
-      // step 0: previous shot text, step 1: shot anim, step 2, next player's turn text
+      // step 0: previous shot text, step 1: shot anim, step 2: next player's turn text
       for (byte steps = 0; steps < 3; steps++) {
         
         // skip first 2 steps if no previous shot
         if (nb_shots[-p+1] == 0) steps = 2;
-        
+
         bool waiting = true;
+        popup_blocker = false;
         while (waiting) {
           if (gb.update()) {
             
             // move clouds
-            int fc = gb.frameCount;
-            if (fc - last_move > interval) {
-              last_move = fc;
-              clouds_x--;
-              if (clouds_x < -87) clouds_x = 0;
-              // back clouds
-              if (clouds_x % 2 == 0) {
-                clouds2_x--;
-                if (clouds2_x < -87) clouds2_x = 0;
-              }
-            }
-            
-            // move arrow
-            if (fc - last_arrow_move > 10) {
-              last_arrow_move = fc;
-              if (press_a[1] == 16) {
-                press_a[1] = ' ';
-                press_a[2] = 16; // right arrow
-              } else {
-                press_a[1] = 16;
-                press_a[2] = ' ';
-              }
-            }
-            
-            // draw clouds
-            gb.display.setColor(GRAY);
-            gb.display.drawBitmap(clouds2_x, 0, clouds2);
-            gb.display.drawBitmap(clouds2_x + 88, 0, clouds2);
-            gb.display.setColor(WHITE);
-            gb.display.drawBitmap(clouds_x, 0, cloudsW);
-            gb.display.drawBitmap(clouds_x + 88, 0, cloudsW);
-            gb.display.setColor(BLACK);
-            gb.display.drawBitmap(clouds_x, 0, clouds);
-            gb.display.drawBitmap(clouds_x + 88, 0, clouds);
-            
+            update_clouds();
+                               
             // draw text
-            if (!game_over) {
-              gb.display.cursorX = 14;
-              gb.display.cursorY = 15;
-              if (steps == 2) {
-                gb.display.print(p_name[p]);
-                gb.display.print("'s ");
-                gb.display.print("turn!");
-              } else {
-                gb.display.print(p_name[-p+1]);
-                gb.display.print("'s ");
-                gb.display.println("shot:");
-              }   
-            }
-
+            draw_anim_text(p, steps);
+            
             // boat & water
-            gb.display.drawBitmap(10, 19 + b_y_offset, logo);
-            gb.display.setColor(GRAY);
-            gb.display.fillRect(0, 32, 84, 16);
-            gb.display.setColor(WHITE);
-            gb.display.cursorX = 70;
-            gb.display.cursorY = 41;
-            gb.display.print(press_a);
-  
-            /* change speed :)
-            if (gb.buttons.pressed(BTN_LEFT) && interval < 10) interval++;
-            if (gb.buttons.pressed(BTN_RIGHT) && interval > 1) interval--;*/
-
+            update_boat();
+                        
             // resolve and play anim
             if (steps == 1){
-              
+
               // check last shot of other player
               // if exists
               if (nb_shots[-p+1] >= 1) {
+                
+                // tells which boat was hit if any
                 int check_shot = check_pos(p, last_cur_x[-p+1], last_cur_y[-p+1]);
-                // if hit, check_shot <= 5 (any boat id)
+                
+                // if hit
                 if (check_shot < 255) {
                   
-                  // if 1st frame of anim then show popup
-                  if (anim_frame == anim_frames) {
+                  // if sunk
+                  if (sunk(p, check_shot)) {
                     
-                    // if sunk
-                    if (sunk(p, check_shot)) {
-                      switch (check_shot) {
-                        case 0: gb.popup(F("Cruiser sunk!"), 20); break;
-                        case 1: gb.popup(F("Submarine sunk!"), 20); break;
-                        case 2: gb.popup(F("Destroyer sunk!"), 20); break;
-                        case 3: gb.popup(F("Battle ship sunk!"), 20); break;
-                        case 4: gb.popup(F("Carrier sunk!"), 20); break;
-                      }
+                    // init anim
+                    sinking = true;
+
+                    // popup
+                    sunk_popup(check_shot);
                       
-                      // check if all other boats sunk too
-                      game_over = true;
-                      for (int i = 0; i < 5; i++) {
-                        if (!sunk(p, i)) {
-                          game_over = false;
-                        }
+                    // check if all other boats sunk too
+                    game_over = true;
+                    for (int i = 0; i < 5; i++) {
+                      if (!sunk(p, i)) {
+                        game_over = false;
                       }
-                      if (game_over) playing = false;
                     }
-                    
-                    // if hit but not sunk
-                    else gb.popup(F("HIT!!!"), 15);
+                    if (game_over) playing = false;
                   }
-                  
-                  // other than the 1st frame
+                    
+                  // if hit but not sunk
                   else {
-                    if (sunk(p, check_shot)) {
-                      // sink
-                      b_y_offset++;
+                    if (!popup_blocker) {
+                      // sound fx
+                      sfx(1, 0);
+                      // popup
+                      gb.popup(F("HIT!!!"), 10);
+                      popup_blocker = true;                    
                     }
                   }
                 }
                 
                 // if miss
                 else {
-                  
-                  // if 1st frame of anim shot popup
-                  if (anim_frame == anim_frames) {
+                  // show popup
+                  if (!popup_blocker) {
                     gb.sound.playCancel();
-                    gb.popup(F("Miss..."), 15);
+                    gb.popup(F("Miss..."), 10);
+                    // don't display popup more than once
+                    popup_blocker = true;
                   }
                 }
-                if (anim_frame == 0) waiting = false;
-                else anim_frame--;
               }              
             }
+
+            // sink anim
+            update_sink_anim();
+           
+            // press A arrow
+            update_arrow();
+              
             // update game over anim
             if (game_over) update_game_over_anim(-p+1);
   
@@ -884,7 +982,9 @@ void loop() {
               gb.popup(F("Already shot there!"), 20);
             }
             else {
-              gb.sound.playTick();
+              // launch sound on channel 0;
+              sfx(0, 0);
+              //gb.sound.playTick();
               nb_shots[p]++;
               byte target = check_pos(-p+1, cur_x, cur_y);
               if (target < 255) {
@@ -952,7 +1052,7 @@ void loop() {
         }                   // end if gb.update()
       }                     // end while waiting for shoot
     }                       // end for each player
-  }                         // end while not over
+  }                         // end while playing
 }                           // end loop
 
 
