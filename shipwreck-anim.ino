@@ -15,8 +15,8 @@ int useless8 = 0;
 int useless9 = 0;
 int useless10 = 0;
 int useless11 = 0;
-/*int useless12 = 0;
-int useless13 = 0;*/
+int useless12 = 0;
+int useless13 = 0;
 int useless14 = 0;
 int useless15 = 0;
 int useless16 = 0;
@@ -39,10 +39,10 @@ int useless32 = 0;
 int useless33 = 0;
 int useless34 = 0;
 int useless35 = 0;
-int useless36 = 0;
+int useless36 = 0;/*
 int useless37 = 0;
 int useless38 = 0;
-int useless39 = 0;
+int useless39 = 0;*/
 
 bool playing;
 bool display_enemy_shots = false;
@@ -290,6 +290,11 @@ B01100000,B11100001,B00110001,B00000000,B00100000,B11100010,
 B00111111,B10000001,B11100001,B11111111,B11111111,B10111110,
 };
 
+// sounds
+const int soundfx[2][8] = {
+  {1,0,57,1,2,9,7,20}, // launch
+  {1,4,58,0,1,4,7,17}  // explode 
+};
 /*
  * 
  *        SETUP ==================================================================
@@ -490,6 +495,16 @@ void reset_game() {
   }
 }
 
+// sfx
+void sfx(byte fxno, byte channel) {
+  gb.sound.command(0, soundfx[fxno][6], 0, channel); // set volume
+  gb.sound.command(1, soundfx[fxno][0], 0, channel); // set waveform
+  gb.sound.command(2, soundfx[fxno][5], -soundfx[fxno][4], channel); // set volume slide
+  gb.sound.command(3, soundfx[fxno][3], soundfx[fxno][2] - 58, channel); // set pitch slide
+  gb.sound.playNote(soundfx[fxno][1], soundfx[fxno][7], channel); // play note
+  //WAVEFORM, PITCH, PMD, PMT, VMD, VMT, VOL, LENGTH
+}
+
 // GUI
 // text
 void print_in_zone(char t[9]) {
@@ -618,22 +633,6 @@ void update_sink_anim() {
   boat_anim_fc++;
 }
 
-// sinking popup
-void sunk_popup(byte b) {
-  if (sinking == true) {
-    // show popup
-    if (!popup_blocker) {
-      popup_blocker = true;
-      switch (b) {
-        case 0: gb.popup(F("Cruiser sunk!"), 15); break;
-        case 1: gb.popup(F("Submarine sunk!"), 15); break;
-        case 2: gb.popup(F("Destroyer sunk!"), 15); break;
-        case 3: gb.popup(F("Battleship sunk!"), 15); break;
-        case 4: gb.popup(F("Carrier sunk!"), 15); break;
-      }
-    }
-  }
-}
 // A arrow
 void update_arrow() {
 
@@ -660,6 +659,26 @@ void update_arrow() {
   gb.display.cursorY = 41;
   gb.display.print(press_a);
 }
+
+// sinking popup & sfx
+void sunk_popup(byte b) {
+  if (sinking == true) {
+    // show popup
+    if (!popup_blocker) {
+      popup_blocker = true;
+      switch (b) {
+        case 0: gb.popup(F("Cruiser sunk!"), 15); break;
+        case 1: gb.popup(F("Submarine sunk!"), 15); break;
+        case 2: gb.popup(F("Destroyer sunk!"), 15); break;
+        case 3: gb.popup(F("Battleship sunk!"), 15); break;
+        case 4: gb.popup(F("Carrier sunk!"), 15); break;
+      }
+      // play sfx
+      sfx(1, 0);
+    }
+  }
+}
+
 
 /*
  * 
@@ -825,6 +844,7 @@ void loop() {
         if (nb_shots[-p+1] == 0) steps = 2;
 
         bool waiting = true;
+        popup_blocker = false;
         while (waiting) {
           if (gb.update()) {
             
@@ -871,16 +891,25 @@ void loop() {
                     
                   // if hit but not sunk
                   else {
-                    gb.popup(F("HIT!!!"), 15);
-                    boat_anim_y = 0;
+                    if (!popup_blocker) {
+                      // sound fx
+                      sfx(1, 0);
+                      // popup
+                      gb.popup(F("HIT!!!"), 10);
+                      popup_blocker = true;                    
+                    }
                   }
                 }
                 
                 // if miss
                 else {
                   // show popup
-                  gb.sound.playCancel();
-                  gb.popup(F("Miss..."), 15);
+                  if (!popup_blocker) {
+                    gb.sound.playCancel();
+                    gb.popup(F("Miss..."), 10);
+                    // don't display popup more than once
+                    popup_blocker = true;
+                  }
                 }
               }              
             }
@@ -953,7 +982,9 @@ void loop() {
               gb.popup(F("Already shot there!"), 20);
             }
             else {
-              gb.sound.playTick();
+              // launch sound on channel 0;
+              sfx(0, 0);
+              //gb.sound.playTick();
               nb_shots[p]++;
               byte target = check_pos(-p+1, cur_x, cur_y);
               if (target < 255) {
