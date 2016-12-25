@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <Gamebuino.h>
+#include <time.h>
 Gamebuino gb;
 
 //
@@ -46,6 +47,7 @@ int useless39 = 0;*/
 
 #define HUMAN 0
 #define CPU 1
+#define BOARD_SIZE 9
 bool opponent;
 bool playing;
 bool display_enemy_shots = false;
@@ -322,6 +324,8 @@ void setup(){
   gb.begin();
   gb.titleScreen(F("Shipwreck"), logo);
   gb.pickRandomSeed();
+  //srand (time(NULL));
+  //randomSeed(time(NULL));
   gb.battery.show = false;
 }
 
@@ -511,6 +515,64 @@ void reset_game() {
   }
 }
 
+void place_CPU_boat(byte b) {
+  bool possible = false;
+  bool dir;
+  byte x, y;
+  byte x_max, y_max;
+  
+  while (!possible) {
+    /*x = rand() % (BOARD_SIZE - b);
+    y = rand() % (BOARD_SIZE - b);*/
+    dir = random(2);
+    // assign max to appropriate axis
+    if (dir) {
+      x_max = BOARD_SIZE - b;
+      y_max = BOARD_SIZE;
+    } else {
+      x_max = BOARD_SIZE;
+      y_max = BOARD_SIZE - b;
+    }
+    x = random(x_max);
+    y = random(y_max);
+    
+    Serial.print(boat_name[b]);
+    Serial.println(":");
+    // for each cell of the boat
+    for (byte i = 0; i < b+1; i++) {
+      byte x_offset, y_offset;
+      if (dir) {
+        x_offset = i;
+        y_offset = 0;
+      }
+      else {
+        x_offset = 0;
+        y_offset = i;
+      }
+      // check
+      if (check_pos(CPU, x + x_offset, y + y_offset) < 255) {
+        possible = false;
+        break;
+      }
+      else possible = true;
+      Serial.print("check_pos returned "); Serial.println(check_pos(CPU, x + x_offset, y + y_offset));
+    }
+    
+    Serial.print("possible: "); Serial.println(possible);
+    Serial.print("x: "); Serial.print(x); Serial.print(", ");
+    Serial.print("y: "); Serial.println(y);
+    if (dir) Serial.println("Horizontal");
+    else Serial.println("Vertical");
+    Serial.println();
+
+    if (possible == true) {
+      boat_pos[CPU][b][0] = x;
+      boat_pos[CPU][b][1] = y;
+      boat_pos[CPU][b][2] = dir;
+    }
+  }
+}
+
 // sfx
 void sfx(byte fxno, byte channel) {
   gb.sound.command(0, soundfx[fxno][6], 0, channel); // set volume
@@ -532,6 +594,13 @@ void print_in_zone_with_number(char t[9], byte n) {
   gb.display.cursorX = 50;
   gb.display.print(t);
   gb.display.println(n);
+}
+
+// change name
+void change_player_name(bool p, char str[9]) {
+  for (byte i = 0; i < 9; i++) {
+    p_name[p][i] = str[i];
+  }
 }
 
 // anims
@@ -721,12 +790,16 @@ void sunk_popup(byte b) {
 void loop() {
 
   reset_game();
+
+  // menu
   switch(gb.menu(menu, MENULENGTH)){
     case 0:
       opponent = HUMAN;
       break;
     case 1:
       opponent = CPU;
+      change_player_name(CPU, "  CPU   ");
+      //p_name[CPU] = "  CPU   ";
       break;
     case 2:
       title_screen();
@@ -753,102 +826,113 @@ void loop() {
     // for each boat, starting from biggest
     while (b >= 0) {
       if (gb.update()) {
-        draw_board();
-        // draw already placed boats
-        draw_boats(p);
-        // display text
-        gb.display.setColor(WHITE);
-        print_in_zone(p_name[p]);
-        gb.display.setColor(BLACK);
-        print_in_zone("Place");
-        print_in_zone("your");
-        print_in_zone(boat_name[b]);
-        gb.display.println();
-        print_in_zone("A: Place");
-        print_in_zone("B: Rotat");
-
-
-        // BUTTON detection
-        // B: rotate
-        if (gb.buttons.pressed(BTN_B)) {
-          // toggle boolean
-          boat_rot = -boat_rot + 1;
-          // move cursor if boat out of screen
-          if (cur_x + b > 8 && boat_rot == true) cur_x = 8-b;
-          if (cur_y + b > 8 && boat_rot == false) cur_y = 8-b;
-        }
-        // A: place
-        if (gb.buttons.pressed(BTN_A)) {
-          // test against player boat map
-          bool possible = true;
-          // for each cell of the boat
-          for (byte i = 0; i < b+1; i++) {
-            byte x_offset, y_offset;
-            if (boat_rot) {
-              x_offset = i;
-              y_offset = 0;
+        if (p == HUMAN || opponent == HUMAN) {
+          draw_board();
+          // draw already placed boats
+          draw_boats(p);
+          // display text
+          gb.display.setColor(WHITE);
+          print_in_zone(p_name[p]);
+          gb.display.setColor(BLACK);
+          print_in_zone("Place");
+          print_in_zone("your");
+          print_in_zone(boat_name[b]);
+          gb.display.println();
+          print_in_zone("A: Place");
+          print_in_zone("B: Rotat");
+  
+  
+          // BUTTON detection
+          // B: rotate
+          if (gb.buttons.pressed(BTN_B)) {
+            // toggle boolean
+            boat_rot = -boat_rot + 1;
+            // move cursor if boat out of screen
+            if (cur_x + b > 8 && boat_rot == true) cur_x = 8-b;
+            if (cur_y + b > 8 && boat_rot == false) cur_y = 8-b;
+          }
+          // A: place
+          if (gb.buttons.pressed(BTN_A)) {
+            // test against player boat map
+            bool possible = true;
+            // for each cell of the boat
+            for (byte i = 0; i < b+1; i++) {
+              byte x_offset, y_offset;
+              if (boat_rot) {
+                x_offset = i;
+                y_offset = 0;
+              }
+              else {
+                x_offset = 0;
+                y_offset = i;
+              }
+              // check
+              if (check_pos(p, cur_x + x_offset, cur_y + y_offset) < 255) {
+                possible = false;
+                break;
+              }
+            }
+            if (possible == true) {
+              boat_pos[p][b][0] = cur_x;
+              boat_pos[p][b][1] = cur_y;
+              boat_pos[p][b][2] = boat_rot;
+              // next ship
+              gb.sound.playOK();
+              // exit loop to avoid byte to become negative
+              if (b == 0) break;
+              b--;
             }
             else {
-              x_offset = 0;
-              y_offset = i;
-            }
-            // check
-            if (check_pos(p, cur_x + x_offset, cur_y + y_offset) < 255) {
-              possible = false;
-              break;
+              gb.sound.playCancel();
+              gb.popup(F("Can't overlap boats"), 20);
             }
           }
-          if (possible == true) {
-            boat_pos[p][b][0] = cur_x;
-            boat_pos[p][b][1] = cur_y;
-            boat_pos[p][b][2] = boat_rot;
-            // next ship
-            gb.sound.playOK();
-            // exit loop to avoid byte to become negative
-            if (b == 0) break;
-            b--;
+          
+          // arrows
+          if (gb.buttons.pressed(BTN_UP)) {
+            if (cur_y > 0) cur_y--;
+            else gb.sound.playCancel();
           }
-          else {
-            gb.sound.playCancel();
-            gb.popup(F("Can't overlap boats"), 20);
+          if (gb.buttons.pressed(BTN_DOWN)) {
+            if (cur_y < 8 - (b)*(-boat_rot+1))
+              cur_y++;
+            else gb.sound.playCancel();
           }
-        }
-        
-        // arrows
-        if (gb.buttons.pressed(BTN_UP)) {
-          if (cur_y > 0) cur_y--;
-          else gb.sound.playCancel();
-        }
-        if (gb.buttons.pressed(BTN_DOWN)) {
-          if (cur_y < 8 - (b)*(-boat_rot+1))
-            cur_y++;
-          else gb.sound.playCancel();
-        }
-        if (gb.buttons.pressed(BTN_LEFT)) {
-          if (cur_x > 0) cur_x--;
-          else gb.sound.playCancel();
-        }
-        if (gb.buttons.pressed(BTN_RIGHT)) {
-          if (cur_x < 8 - (b)*boat_rot)
-            cur_x++;
-          else gb.sound.playCancel();
+          if (gb.buttons.pressed(BTN_LEFT)) {
+            if (cur_x > 0) cur_x--;
+            else gb.sound.playCancel();
+          }
+          if (gb.buttons.pressed(BTN_RIGHT)) {
+            if (cur_x < 8 - (b)*boat_rot)
+              cur_x++;
+            else gb.sound.playCancel();
+          }
+  
+          // B: toggle night/day
+          
+          // C: pause / leave
+          if(gb.buttons.pressed(BTN_C)) title_screen();
+  
+          // draw boat
+          gb.display.setColor(WHITE);
+          byte x_offset = 0;
+          byte y_offset = 0;
+          for (byte i = 0; i <= b; i++) {
+             if (boat_rot) {
+              gb.display.drawRect((cur_x+i)*5 + 3, cur_y*5 + 3, 2, 2);
+            } else {
+              gb.display.drawRect(cur_x*5 + 3, (cur_y+i)*5 + 3, 2, 2);
+            }
+          }
         }
 
-        // B: toggle night/day
-        
-        // C: pause / leave
-        if(gb.buttons.pressed(BTN_C)) title_screen();
-
-        // draw boat
-        gb.display.setColor(WHITE);
-        byte x_offset = 0;
-        byte y_offset = 0;
-        for (byte i = 0; i <= b; i++) {
-           if (boat_rot) {
-            gb.display.drawRect((cur_x+i)*5 + 3, cur_y*5 + 3, 2, 2);
-          } else {
-            gb.display.drawRect(cur_x*5 + 3, (cur_y+i)*5 + 3, 2, 2);
-          }
+        // if opponent is CPU
+        else {
+          place_CPU_boat(b);
+          // exit loop to avoid byte to become negative
+          if (b == 0) break;
+          // next ship
+          b--;
         }
       }
     }
