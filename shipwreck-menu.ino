@@ -49,14 +49,16 @@ int useless39 = 0;*/
 #define CPU 1
 #define BOARD_SIZE 9
 bool opponent;
-bool playing;
-bool display_enemy_shots = false;
-bool game_over = false; // playing remains true until anim is over
+bool game_reset;                       // true when new game started until new game engaged
+bool playing;                     // true @ shooting stage
+bool game_started;                // true from boat setup to shooting phase
+bool display_enemy_shots = false; // used to toggle between own shots & enemy shots
+bool game_over = false;
 byte nb_shots[2];
 byte last_cur_x[2] = { 4, 4 };
 byte last_cur_y[2] = { 4, 4 };
 // anim variables
-byte game_over_anim_fc; // frame counter for game over anim
+byte game_over_anim_fc;           // frame counter for game over anim
 byte anim_duration; 
 byte clouds_x = 88;
 byte clouds2_x = 88;
@@ -72,22 +74,29 @@ byte anim_fc;
 byte explosion_x;
 
 // text variables
-char p_name[2][9] = { "Player1", "Player2" };
+char p_name[2][9] = { "Player 1", "Player 2" };
 char press_a[4] = { 21, 16, ' ' }; // "a> "
 
 // text constants
 const char boat_name[5][9] = { "Cruiser", "Submarin", "Destroyr", "Bat.Ship", "Carrier" };
-#define MENULENGTH 3
+
+// menu
+#define MENULENGTH 4
+#define MENU_RESUME 0
+#define MENU_HUMAN 1
+#define MENU_CPU 2
+#define MENU_EXIT 3
+const char strResume[] PROGMEM = "Resume";
 const char strHumanVSHuman[] PROGMEM = "Human VS human";
 const char strHumanVSCPU[] PROGMEM = "Human VS CPU";
-const char strExit[] PROGMEM = "Exit";
+const char strExit[] PROGMEM = "Title screen";
 //Put all the different items together in a menu (an array of strings actually)
 const char* const menu[MENULENGTH] PROGMEM = {
+  strResume,
   strHumanVSHuman,
   strHumanVSCPU,
   strExit
 };
-
 
 // boat positions x, y, dir (255 for x means not placed)
 byte boat_pos[2][5][3] =
@@ -487,13 +496,18 @@ byte check_pos(bool p, byte cur_x, byte cur_y) {
   return output;
 }
 
-void reset_game() {
+void init_game() {
   byte v = 0;
 
   game_over = false;
+  playing = false;
+  game_started = true;
+  game_reset = true;
   game_over_anim_fc = 0;
-  
+
+  // for each player
   for (byte p = 0; p < 2; p++) {
+    
     // reset boat positions
     for (byte b = 0; b < 5; b++) {
       for (byte n = 0; n < 3; n++) {
@@ -510,6 +524,8 @@ void reset_game() {
       }
     }
     nb_shots[p] = 0;
+
+    // reset_cursors
     last_cur_x[p] = 4;
     last_cur_y[p] = 4;
   }
@@ -536,8 +552,8 @@ void place_CPU_boat(byte b) {
     x = random(x_max);
     y = random(y_max);
     
-    Serial.print(boat_name[b]);
-    Serial.println(":");
+/*    Serial.print(boat_name[b]);
+    Serial.println(":");*/
     // for each cell of the boat
     for (byte i = 0; i < b+1; i++) {
       byte x_offset, y_offset;
@@ -555,15 +571,15 @@ void place_CPU_boat(byte b) {
         break;
       }
       else possible = true;
-      Serial.print("check_pos returned "); Serial.println(check_pos(CPU, x + x_offset, y + y_offset));
+      //Serial.print("check_pos returned "); Serial.println(check_pos(CPU, x + x_offset, y + y_offset));
     }
     
-    Serial.print("possible: "); Serial.println(possible);
+    /*Serial.print("possible: "); Serial.println(possible);
     Serial.print("x: "); Serial.print(x); Serial.print(", ");
     Serial.print("y: "); Serial.println(y);
     if (dir) Serial.println("Horizontal");
     else Serial.println("Vertical");
-    Serial.println();
+    Serial.println();*/
 
     if (possible == true) {
       boat_pos[CPU][b][0] = x;
@@ -640,6 +656,7 @@ void update_game_over_anim(bool p) {
   // if anim finished
   if (game_over_anim_fc > 41) {
     playing = false;
+    game_started = false;
   }
   
   // "game over" bitmaps (drawn on top)
@@ -780,6 +797,32 @@ void sunk_popup(byte b) {
   }
 }
 
+// menu
+void display_menu() {
+  switch(gb.menu(menu, MENULENGTH)){
+    case MENU_RESUME:
+      if (!game_started) {
+        gb.popup(F("Start a game first!"), 20);
+      }
+      break;
+    case MENU_HUMAN:
+      opponent = HUMAN;
+      change_player_name(1, "Player 2");
+      init_game();
+      break;
+    case MENU_CPU:
+      opponent = CPU;
+      change_player_name(CPU, "     CPU");
+      init_game();
+      break;
+    case MENU_EXIT:
+      title_screen();
+      break;
+    default:
+      title_screen();
+      break;
+  }
+}
 
 /*
  * 
@@ -789,25 +832,8 @@ void sunk_popup(byte b) {
 
 void loop() {
 
-  reset_game();
-
   // menu
-  switch(gb.menu(menu, MENULENGTH)){
-    case 0:
-      opponent = HUMAN;
-      break;
-    case 1:
-      opponent = CPU;
-      change_player_name(CPU, "  CPU   ");
-      //p_name[CPU] = "  CPU   ";
-      break;
-    case 2:
-      title_screen();
-      break;
-    default:
-      title_screen();
-      break;
-  }
+  while(!game_started) display_menu();
 
   /*
    *    BBBB     OOO     AAA    TTTTT       SSSS   EEEEE   TTTTT   U   U   PPPP
@@ -819,6 +845,7 @@ void loop() {
 
   // for each player
   for (byte p = 0; p < 2; p++) {
+    game_reset = false;
     byte b = 4;
     bool boat_rot = false;
     byte cur_x = 4;
@@ -908,10 +935,11 @@ void loop() {
             else gb.sound.playCancel();
           }
   
-          // B: toggle night/day
-          
           // C: pause / leave
-          if(gb.buttons.pressed(BTN_C)) title_screen();
+          if(gb.buttons.pressed(BTN_C)) {
+            display_menu();
+            if (game_reset) break;
+          }
   
           // draw boat
           gb.display.setColor(WHITE);
@@ -936,7 +964,11 @@ void loop() {
         }
       }
     }
+    if (game_reset) {
+      break;
+    }
   }
+  
 
   /*
    *    GGGGG    AAA    MM MM   EEEEE
@@ -947,13 +979,15 @@ void loop() {
    */
 
   playing = true;
-  while (playing) {
+  while (playing && !game_reset) {
 
     // for each player
     for (byte p = 0; p < 2; p++) {
       
       // don't run for p2 if p1 already won
       if (playing == false) break;
+      // don't run if game reset
+      if (game_started == false) break;
       
       /*
        *          ANIM SCREEN
@@ -1017,7 +1051,10 @@ void loop() {
                         game_over = false;
                       }
                     }
-                    if (game_over) playing = false;
+                    if (game_over) {
+                      playing = false;
+                      game_started = false;
+                    }
                   }
                     
                   // if hit but not sunk
@@ -1065,7 +1102,10 @@ void loop() {
               waiting = false;
             }
             // allow exit
-            if (gb.buttons.pressed(BTN_C)) title_screen();
+            if (gb.buttons.pressed(BTN_C)) {
+              display_menu();
+              if (game_reset) break;
+            }
           }
         }
       }
@@ -1118,17 +1158,20 @@ void loop() {
               gb.popup(F("Already shot there!"), 20);
             }
             else {
-              // launch sound on channel 0;
+              // missile launching sound on channel 0;
               sfx(0, 0);
-              //gb.sound.playTick();
+              
               nb_shots[p]++;
+              
               byte target = check_pos(-p+1, cur_x, cur_y);
               if (target < 255) {
                 shots[p][cur_x][cur_y] = target; // shots map: set target value when hit
               } else {
                 shots[p][cur_x][cur_y] = 254; // shots map: set 254 when miss
               } 
+              
               waiting_for_shot = false;
+              
               // save cursor position
               last_cur_x[p] = cur_x;
               last_cur_y[p] = cur_y;
@@ -1144,7 +1187,10 @@ void loop() {
           }
           
           // C: pause / leave
-          if(gb.buttons.pressed(BTN_C)) title_screen();
+          if(gb.buttons.pressed(BTN_C)) {
+            display_menu();
+            if (game_reset) break;
+          }
 
           // draw aim
           if (!display_enemy_shots) {
