@@ -35,11 +35,11 @@ int useless27 = 0;
 int useless28 = 0;
 int useless29 = 0;
 int useless30 = 0;
-int useless31 = 0;
+int useless31 = 0;/*
 int useless32 = 0;
 int useless33 = 0;
 int useless34 = 0;
-int useless35 = 0;/*
+int useless35 = 0;
 int useless36 = 0;
 int useless37 = 0;
 int useless38 = 0;
@@ -594,6 +594,23 @@ void place_CPU_boat(byte b) {
       boat_pos[CPU][b][2] = dir;
     }
   }
+}
+
+void write_CPU_shot(byte x, byte y) {
+  byte write_shot;
+  if (check_pos(HUMAN, x, y) < 6) {
+    write_shot = check_pos(HUMAN, x, y);
+  }
+  else {
+    write_shot = 254; // miss
+  }
+  shots[CPU][x][y] = write_shot;
+  // save positions for reference during anim screen
+  last_cur_x[CPU] = x;
+  last_cur_y[CPU] = y;
+  nb_shots[CPU]++;
+  Serial.print("Writing "); Serial.print(x); Serial.print(", "); Serial.print(y); Serial.print(": "); Serial.println(write_shot);
+  sfx(0, 0);
 }
 
 // sfx
@@ -1244,14 +1261,13 @@ void loop() {
         // if p2 is CPU
         else if (p == 1 && opponent == CPU) {
           bool boat_to_sink = false;
+          bool shot_set = false;
           // for each shot
           for (byte y = 0; y < BOARD_SIZE; y++) {
             for (byte x = 0; x < BOARD_SIZE; x++) {
 
-              // if successful
+               // if successful
               byte shot = shots[CPU][x][y];
-              // verbose
-              Serial.print(shot); Serial.print(" ");
               if (shot < 6) {
 
                 // if boat not sunk
@@ -1264,7 +1280,7 @@ void loop() {
                       
                       // set coordinates of corresponding neighbour
                       int neighbour_x, neighbour_y;
-                      // check vertical axis
+                      // vertical axis
                       if (i == 0) {
                         neighbour_x = x;
                         if (j == 0) neighbour_y = y-1;
@@ -1276,48 +1292,96 @@ void loop() {
                         if (j == 0) neighbour_x = x-1;
                         else neighbour_x = x+1;
                       }
+                      Serial.print("Neighbour: "); Serial.print(neighbour_x); Serial.print(", "); Serial.print(neighbour_y); Serial.print(" > ");
   
-                      // if coordinates within the board
+                      // if coordinates within board
                       if (neighbour_x >= 0 && neighbour_x < BOARD_SIZE && neighbour_y >= 0 && neighbour_y < BOARD_SIZE) {
+                        
                         // if hit & not sunk
                         byte check = shots[CPU][neighbour_x][neighbour_y];
+                        Serial.println(check);
                         if (check < 6 && !sunk(HUMAN, check)) {
+         
                           // get axis
                           bool axis;
-                          if (neighbour_x == x) axis = 0;
-                          else axis = 1;
-                          Serial.println(axis);
+                          if (neighbour_x == x) axis = 1; // vertical
+                          else axis = 0;                  // horizontal
+                          Serial.print("  Axis: "); Serial.println(axis);
+
+                          // go towards 1st end
+                          for (byte k = 0; k < 5; k++) {                    
+
+                            // horizontally
+                            if (axis == 0) {
+                              
+                              int dir = neighbour_x - x;
+                              // if step is within board
+                              if (neighbour_x + dir*k >= 0 && neighbour_x + dir*k < BOARD_SIZE) {
+                                // shoot if empty
+                                if (shots[CPU][neighbour_x + dir*k][y] == 255) {
+                                  // determine value to add to shots map
+                                  write_CPU_shot(neighbour_x + dir*k, y);
+                                  shot_set = true;
+                                  // don't go further!!!
+                                  break;
+                                }
+                              }
+                            }
+
+                            // vertically
+                            else {
+                              
+                              int dir = neighbour_y - y;
+                              // if step is within board
+                              if (neighbour_y + dir*k >= 0 && neighbour_y + dir*k < BOARD_SIZE) {
+                                // shoot if empty
+                                if (shots[CPU][x][neighbour_y + dir*k] == 255) {
+                                  // determine value to add to shots map
+                                  write_CPU_shot(neighbour_x + dir*k, y);
+                                  shot_set = true;
+                                  // don't go further!!!
+                                  break;
+                                }
+                              }
+                            }
+                          } // end go towards first end
+                        } // end if neighbour cell hit
+                        else {
+                          // if neighbour not shot at yet
+                          if (check == 255) {
+                            write_CPU_shot(neighbour_x, neighbour_y);
+                            shot_set = true;
+                            // don't go further!!!
+                            break;
+                          }
                         }
-                      }
-                    }
-                  } // end check neighbouring cells
+                      } // end if neighbour within board
+                      if (shot_set) break;
+                    }// end check neighbouring cells --> x <-- axis
+                    if (shot_set) break;
+                  } // end check neighbouring cells --> y <-- axis
                 }   // end if boat not sunk
                 
               } // end if successful
+              if (shot_set) break;
             }
-            Serial.println();
+            if (shot_set) break;
           } // end for each CPU shot
 
-          Serial.println(boat_to_sink);
-          // if no successful shot
-          bool aiming = true;
-          while (aiming) {
-            byte x = random(BOARD_SIZE);
-            byte y = random(BOARD_SIZE);
-            if (shots[CPU][x][y] == 255) {
-              sfx(0, 0);
-              
-              nb_shots[CPU]++;
-              
-              byte target = check_pos(HUMAN, x, y);
-              if (target < 255) {
-                shots[CPU][x][y] = target; // shots map: set target value when hit
-              } else {
-                shots[CPU][x][y] = 254; // shots map: set 254 when miss
+          // if no previous successful shot
+          if (!shot_set) {
+            bool aiming = true;
+            while (aiming) {
+              byte x = random(BOARD_SIZE);
+              byte y = random(BOARD_SIZE);
+              if (shots[CPU][x][y] == 255) {
+                sfx(0, 0);
+                nb_shots[CPU]++;
+                write_CPU_shot(x, y);
+                aiming = false;
               }
-              aiming = false;
-            }
-          }                 // end while aiming
+            }               // end while aiming
+          }                 // end random shot
           waiting_for_shot = false;
         }                   // end if p2 is CPU (AI)
       }                     // end while waiting for shoot

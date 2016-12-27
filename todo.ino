@@ -12,7 +12,8 @@
 // DONE missile sound
 // DONE sound when hit
 // DONE anim when boat hit
+// DONE menu
+// finish AI
 // make explosion appear on top of sinking boat
 // anim when boat missed
-// menu
 // improve aim design
