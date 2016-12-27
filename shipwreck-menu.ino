@@ -1247,9 +1247,11 @@ void loop() {
           // for each shot
           for (byte y = 0; y < BOARD_SIZE; y++) {
             for (byte x = 0; x < BOARD_SIZE; x++) {
-              
+
               // if successful
               byte shot = shots[CPU][x][y];
+              // verbose
+              Serial.print(shot); Serial.print(" ");
               if (shot < 6) {
 
                 // if boat not sunk
@@ -1293,8 +1295,10 @@ void loop() {
                 
               } // end if successful
             }
+            Serial.println();
           } // end for each CPU shot
 
+          Serial.println(boat_to_sink);
           // if no successful shot
           bool aiming = true;
           while (aiming) {
@@ -1310,7 +1314,7 @@ void loop() {
                 shots[CPU][x][y] = target; // shots map: set target value when hit
               } else {
                 shots[CPU][x][y] = 254; // shots map: set 254 when miss
-              } 
+              }
               aiming = false;
             }
           }                 // end while aiming
