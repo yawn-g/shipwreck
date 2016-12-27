@@ -56,7 +56,12 @@ bool display_enemy_shots = false; // used to toggle between own shots & enemy sh
 bool game_over = false;
 byte nb_shots[2];
 byte last_cur_x[2] = { 4, 4 };
-byte last_cur_y[2] = { 4, 4 };
+byte last_cur_y[2] = { 2, 2 };
+
+// AI
+bool CPU_last_hit;
+byte CPU_last_move;
+
 // anim variables
 byte game_over_anim_fc;           // frame counter for game over anim
 byte anim_duration; 
@@ -124,7 +129,7 @@ byte boat_pos[2][5][3] =
  *  0-5 = hit boat number
  */
 // 255 = not shot at
-byte shots[2][9][9] =
+byte shots[2][BOARD_SIZE][BOARD_SIZE] =
 {
   {
     { 255,255,255,255,255,255,255,255,255 },
@@ -504,6 +509,7 @@ void init_game() {
   game_started = true;
   game_reset = true;
   game_over_anim_fc = 0;
+  CPU_last_hit = false;
 
   // for each player
   for (byte p = 0; p < 2; p++) {
@@ -518,8 +524,8 @@ void init_game() {
     }
 
     // reset shots
-    for (byte x = 0; x < 9; x++) {
-      for (byte y = 0; y < 9; y++) {
+    for (byte y = 0; y < 9; y++) {
+      for (byte x = 0; x < 9; x++) {
         shots[p][x][y] = 255;
       }
     }
@@ -531,6 +537,7 @@ void init_game() {
   }
 }
 
+// AI
 void place_CPU_boat(byte b) {
   bool possible = false;
   bool dir;
@@ -823,6 +830,7 @@ void display_menu() {
       break;
   }
 }
+
 
 /*
  * 
@@ -1125,7 +1133,7 @@ void loop() {
       // skip shot if game is over
       if (game_over) waiting_for_shot = false;
       while (waiting_for_shot) {
-        if (gb.update()) {
+        if (gb.update() && (p == 0 || opponent == HUMAN)) {
           draw_board();
           draw_shots(p);
         
@@ -1232,6 +1240,82 @@ void loop() {
             }
           }*/
         }                   // end if gb.update()
+        
+        // if p2 is CPU
+        else if (p == 1 && opponent == CPU) {
+          bool boat_to_sink = false;
+          // for each shot
+          for (byte y = 0; y < BOARD_SIZE; y++) {
+            for (byte x = 0; x < BOARD_SIZE; x++) {
+              
+              // if successful
+              byte shot = shots[CPU][x][y];
+              if (shot < 6) {
+
+                // if boat not sunk
+                if (!sunk(HUMAN, shot)) {
+
+                  boat_to_sink = true;
+                  // check neighbouring cells
+                  for (byte i = 0; i < 2; i++) {
+                    for (byte j = 0; j < 2; j++) {
+                      
+                      // set coordinates of corresponding neighbour
+                      int neighbour_x, neighbour_y;
+                      // check vertical axis
+                      if (i == 0) {
+                        neighbour_x = x;
+                        if (j == 0) neighbour_y = y-1;
+                        else neighbour_y = y+1;
+                      }
+                      // horizontal axis
+                      else {
+                        neighbour_y = y;
+                        if (j == 0) neighbour_x = x-1;
+                        else neighbour_x = x+1;
+                      }
+  
+                      // if coordinates within the board
+                      if (neighbour_x >= 0 && neighbour_x < BOARD_SIZE && neighbour_y >= 0 && neighbour_y < BOARD_SIZE) {
+                        // if hit & not sunk
+                        byte check = shots[CPU][neighbour_x][neighbour_y];
+                        if (check < 6 && !sunk(HUMAN, check)) {
+                          // get axis
+                          bool axis;
+                          if (neighbour_x == x) axis = 0;
+                          else axis = 1;
+                          Serial.println(axis);
+                        }
+                      }
+                    }
+                  } // end check neighbouring cells
+                }   // end if boat not sunk
+                
+              } // end if successful
+            }
+          } // end for each CPU shot
+
+          // if no successful shot
+          bool aiming = true;
+          while (aiming) {
+            byte x = random(BOARD_SIZE);
+            byte y = random(BOARD_SIZE);
+            if (shots[CPU][x][y] == 255) {
+              sfx(0, 0);
+              
+              nb_shots[CPU]++;
+              
+              byte target = check_pos(HUMAN, x, y);
+              if (target < 255) {
+                shots[CPU][x][y] = target; // shots map: set target value when hit
+              } else {
+                shots[CPU][x][y] = 254; // shots map: set 254 when miss
+              } 
+              aiming = false;
+            }
+          }                 // end while aiming
+          waiting_for_shot = false;
+        }                   // end if p2 is CPU (AI)
       }                     // end while waiting for shoot
     }                       // end for each player
   }                         // end while playing
