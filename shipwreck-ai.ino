@@ -1,6 +1,6 @@
 #include <SPI.h>
 #include <Gamebuino.h>
-#include <time.h>
+//#include <time.h>
 Gamebuino gb;
 
 //
@@ -557,8 +557,6 @@ void place_CPU_boat(byte b) {
   byte x_max, y_max;
   
   while (!possible) {
-    /*x = rand() % (BOARD_SIZE - b);
-    y = rand() % (BOARD_SIZE - b);*/
     dir = random(2);
     // assign max to appropriate axis
     if (dir) {
@@ -571,8 +569,6 @@ void place_CPU_boat(byte b) {
     x = random(x_max);
     y = random(y_max);
     
-/*    Serial.print(boat_name[b]);
-    Serial.println(":");*/
     // for each cell of the boat
     for (byte i = 0; i < b+1; i++) {
       byte x_offset, y_offset;
@@ -590,7 +586,6 @@ void place_CPU_boat(byte b) {
         break;
       }
       else possible = true;
-      //Serial.print("check_pos returned "); Serial.println(check_pos(CPU, x + x_offset, y + y_offset));
     }
     
     /*Serial.print("possible: "); Serial.println(possible);
@@ -1328,9 +1323,9 @@ void loop() {
                     } // end for j (neighbour counter dimension 1)
                   } // end for i (neighbour counter dimension 2)
 
-                  if (available_neighbour) Serial.print("  A");
+                  /*if (available_neighbour) Serial.print("  A");
                   else Serial.print("  No a");
-                  Serial.println("vailable neighbour.");
+                  Serial.println("vailable neighbour.");*/
                   // check axis if applicable
                   if (axis_found) {
 
@@ -1391,7 +1386,7 @@ void loop() {
                                   
                           int spot_y = y + offset;
                           byte spot_result;
-                          Serial.print(spot_y); Serial.print(", "); Serial.print(y); Serial.print(": ");
+                          Serial.print(x); Serial.print(", "); Serial.print(spot_y); Serial.print(": ");
                                  
                           // if step is within board
                           if (spot_y >= 0 && spot_y < BOARD_SIZE) {
@@ -1407,7 +1402,7 @@ void loop() {
                               break;
                               // if already a missed shot there
                             } else if (spot_result == 254) {
-                              Serial.println("  Already shot there! (miss)");
+                              Serial.println("  Already shot there! (miss) Go the other way");
                               // stop scanning axis
                               break;
                               
